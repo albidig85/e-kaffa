@@ -1,0 +1,6 @@
+{
+  "name": "e-Kaffa (Kas Kifayah Raudlatul Umam)",
+  "description": "Aplikasi pencatatan iuran rukun kifayah dan kas santunan kematian berbasis Google Sheets & Android Mobile Friendly",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
