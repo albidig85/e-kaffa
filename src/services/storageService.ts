@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   AUTH: 'ekaffa_auth_role',
 };
 
+const ENV_GAS_URL = (import.meta.env.VITE_GAS_URL || '').trim();
+
 export const DEFAULT_SETTINGS: AppSettings = {
   appName: 'e-Kaffa',
   organizationName: 'Kas Kifayah Raudlatul Umam',
@@ -18,7 +20,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   adminPasswordHash: 'admin123',
   treasurerName: 'H. Ahmad Fauzi (Bendahara)',
   treasurerPhone: '081234567890',
-  gasUrl: '',
+  gasUrl: ENV_GAS_URL,
   whatsappFooter: 'Semoga menjadi amal jariyah dan meringankan keluarga duka. Aamiin ya Rabbal Alamin.',
 };
 
@@ -300,8 +302,17 @@ export const INITIAL_EXPENSES: ExpenseRecord[] = [
 export const getStoredSettings = (): AppSettings => {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (!raw) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const parsed = raw ? JSON.parse(raw) : {};
+    const effectiveGasUrl =
+      parsed.gasUrl && typeof parsed.gasUrl === 'string' && parsed.gasUrl.trim().length > 0
+        ? parsed.gasUrl.trim()
+        : ENV_GAS_URL;
+
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      gasUrl: effectiveGasUrl,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }

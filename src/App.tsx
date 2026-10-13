@@ -105,6 +105,30 @@ export default function App() {
     }
   }, [role, activeTab]);
 
+  // Otomatis tangkap parameter ?gasUrl= jika link dibuka di smartphone atau browser baru
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramGas = urlParams.get('gasUrl');
+      if (paramGas && paramGas.trim().includes('script.google.com')) {
+        let cleanGas = paramGas.trim();
+        if (!cleanGas.endsWith('/exec') && !cleanGas.endsWith('/dev')) {
+          cleanGas = cleanGas.replace(/\/+$/, '') + '/exec';
+        }
+        setSettings((prev) => {
+          const updated = { ...prev, gasUrl: cleanGas };
+          saveStoredSettings(updated);
+          return updated;
+        });
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        showToastNotification('✓ Database Google Sheet berhasil terhubung otomatis!');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   /**
    * Tarik data terbaru dari Google Sheets.
    * Menimpa data lokal secara utuh sehingga jika data dihapus manual di Google Sheet,

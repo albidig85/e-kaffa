@@ -17,6 +17,9 @@ import {
   EyeOff,
   ExternalLink,
   Wrench,
+  Copy,
+  Check,
+  Smartphone,
 } from 'lucide-react';
 import { CurrencyInput } from './CurrencyInput';
 
@@ -39,6 +42,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [testStatus, setTestStatus] = useState<{ loading: boolean; success?: boolean; message?: string } | null>(null);
   const [initStatus, setInitStatus] = useState<{ loading: boolean; success?: boolean; message?: string } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleCopyShareLink = () => {
+    if (!formData.gasUrl) return;
+    const base = window.location.origin;
+    const shareUrl = `${base}/?gasUrl=${encodeURIComponent(formData.gasUrl.trim())}`;
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 3000);
+  };
 
   if (!isOpen) return null;
 
@@ -419,6 +432,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Box Salin Link & Panduan Multi-Device (Smartphone / PC) */}
+            {formData.gasUrl && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                    <Smartphone className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Sinkronkan ke Smartphone & Warga</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyShareLink}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-all active:scale-95 shrink-0"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Tersalin!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        Salin Link Tersinkron
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Buka link yang disalin ini di browser HP Anda (atau bagikan ke grup WA warga). HP akan <strong>otomatis terhubung</strong> ke Google Sheet tanpa perlu salin-tempel URL lagi.
+                </p>
+
+                <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-500">
+                  <span className="font-semibold text-slate-700">Agar permanen untuk semua pengunjung website:</span> Tambahkan <strong>Environment Variable</strong> di Dashboard Vercel: nama <code className="bg-slate-200/70 px-1 py-0.5 rounded text-slate-800 font-mono">VITE_GAS_URL</code> bernilai URL GAS di atas, lalu Redeploy.
+                </div>
               </div>
             )}
           </div>
