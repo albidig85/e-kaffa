@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { AppSettings, Member, UserRole } from '../types';
 import {
   Users,
@@ -41,17 +41,39 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Form State
+  // Form State dengan default Dusun Tengah, 081xxx, dan Dusun Tengah
   const [name, setName] = useState('');
-  const [rtRw, setRtRw] = useState('Dusun 1');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [rtRw, setRtRw] = useState('Dusun Tengah');
+  const [phone, setPhone] = useState('081xxx');
+  const [address, setAddress] = useState('Dusun Tengah');
   const [status, setStatus] = useState<'aktif' | 'non-aktif'>('aktif');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Ref untuk mengarahkan kursor otomatis ke isian Nama Lengkap
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Efek fokus otomatis saat modal Tambah/Edit dibuka
+  useEffect(() => {
+    if (showModal) {
+      const timer = setTimeout(() => {
+        if (nameInputRef.current) {
+          nameInputRef.current.focus();
+          if (editingMember) {
+            const len = nameInputRef.current.value.length;
+            nameInputRef.current.setSelectionRange(len, len);
+          }
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [showModal, editingMember]);
 
   // Unique Dusun List
   const uniqueRtList = useMemo(() => {
     const list = Array.from(new Set(members.map((m) => m.rtRw).filter(Boolean)));
+    if (!list.includes('Dusun Tengah')) {
+      list.unshift('Dusun Tengah');
+    }
     return ['Semua', ...list];
   }, [members]);
 
@@ -73,9 +95,9 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   const handleOpenAdd = () => {
     setEditingMember(null);
     setName('');
-    setRtRw('Dusun 1');
-    setPhone('');
-    setAddress('');
+    setRtRw('Dusun Tengah');
+    setPhone('081xxx');
+    setAddress('Dusun Tengah');
     setStatus('aktif');
     setShowModal(true);
   };
@@ -83,23 +105,23 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   const handleOpenEdit = (m: Member) => {
     setEditingMember(m);
     setName(m.name);
-    setRtRw(m.rtRw || 'Dusun 1');
-    setPhone(m.phone || '');
-    setAddress(m.address);
+    setRtRw(m.rtRw || 'Dusun Tengah');
+    setPhone(m.phone || '081xxx');
+    setAddress(m.address || 'Dusun Tengah');
     setStatus(m.status);
     setShowModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  const handleSubmit = async (e?: React.FormEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
+    if (!name.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     const memberToSave: Member = {
       id: editingMember ? editingMember.id : `MBR-${Date.now().toString().slice(-4)}`,
       name: name.trim(),
       kkNumber: editingMember ? (editingMember.kkNumber || '') : '',
-      rtRw: rtRw.trim() || 'Dusun 1',
+      rtRw: rtRw.trim() || 'Dusun Tengah',
       phone: phone.trim(),
       address: address.trim(),
       status,
@@ -111,6 +133,27 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       setShowModal(false);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Shortcut Enter untuk menyimpan data anggota baru secara instan di PC
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target instanceof HTMLButtonElement) {
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      if (e.target instanceof HTMLTextAreaElement && e.shiftKey) {
+        return;
+      }
+      e.preventDefault();
+      if (!name.trim()) {
+        nameInputRef.current?.focus();
+        return;
+      }
+      if (!isSubmitting) {
+        handleSubmit(e);
+      }
     }
   };
 
@@ -286,12 +329,18 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
+            <form
+              onSubmit={handleSubmit}
+              onKeyDown={handleKeyDown}
+              className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700"
+            >
               <div>
                 <label className="block font-bold mb-1">
                   Nama Lengkap (Kepala Keluarga) <span className="text-rose-500">*</span>
                 </label>
                 <input
+                  ref={nameInputRef}
+                  autoFocus
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -310,7 +359,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                     type="text"
                     value={rtRw}
                     onChange={(e) => setRtRw(e.target.value)}
-                    placeholder="Contoh: Dusun 1 / Krajan"
+                    placeholder="Dusun Tengah"
                     required
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
@@ -322,7 +371,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="081234567890"
+                    placeholder="081xxx"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -333,7 +382,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                 <textarea
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Jl. Kenanga No. 12"
+                  placeholder="Dusun Tengah"
                   rows={2}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
                 />
@@ -351,21 +400,38 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                 </select>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs active:scale-95"
-                >
-                  {isSubmitting ? 'Menyimpan...' : 'Simpan Anggota'}
-                </button>
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[10px] font-mono text-slate-700">
+                    ↵ Enter
+                  </span>
+                  <span>untuk simpan instan</span>
+                </span>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs active:scale-95 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      'Menyimpan...'
+                    ) : (
+                      <>
+                        <span>Simpan Anggota</span>
+                        <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] bg-emerald-800 text-emerald-200 rounded font-mono">
+                          ↵ Enter
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
