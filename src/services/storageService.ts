@@ -12,7 +12,7 @@ const STORAGE_KEYS = {
 const ENV_GAS_URL = (import.meta.env.VITE_GAS_URL || '').trim();
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  appName: 'e-Kaffa',
+  appName: 'e-Kafah',
   organizationName: 'Kas Kifayah Raudlatul Umam',
   minIuran: 10000,
   defaultSantunan: 1500000,
@@ -169,7 +169,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 50000,
     paymentDate: '2025-05-10',
     paymentMethod: 'Tunai',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202505-001',
     notes: 'Iuran wajib + infak kas',
   },
@@ -183,7 +183,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 20000,
     paymentDate: '2025-05-10',
     paymentMethod: 'Tunai',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202505-002',
     notes: 'Titip di pos ronda',
   },
@@ -197,7 +197,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 100000,
     paymentDate: '2025-05-10',
     paymentMethod: 'Transfer',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202505-003',
     notes: 'Transfer via BCA',
   },
@@ -211,7 +211,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 10000,
     paymentDate: '2025-05-11',
     paymentMethod: 'Tunai',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202505-004',
     notes: 'Iuran standar',
   },
@@ -225,7 +225,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 20000,
     paymentDate: '2025-05-11',
     paymentMethod: 'Tunai',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202505-005',
     notes: '',
   },
@@ -239,7 +239,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 20000,
     paymentDate: '2025-03-14',
     paymentMethod: 'Tunai',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202503-001',
     notes: '',
   },
@@ -253,7 +253,7 @@ export const INITIAL_IURAN: IuranRecord[] = [
     amount: 20000,
     paymentDate: '2025-03-14',
     paymentMethod: 'Tunai',
-    recordedBy: 'Admin e-Kaffa',
+    recordedBy: 'Admin e-Kafah',
     receiptNumber: 'KWT-202503-002',
     notes: '',
   },
@@ -308,9 +308,15 @@ export const getStoredSettings = (): AppSettings => {
         ? parsed.gasUrl.trim()
         : ENV_GAS_URL;
 
+    const effectiveAppName =
+      parsed.appName === 'e-Kaffa' || !parsed.appName
+        ? 'e-Kafah'
+        : parsed.appName;
+
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      appName: effectiveAppName,
       gasUrl: effectiveGasUrl,
     };
   } catch {

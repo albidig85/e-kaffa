@@ -26,7 +26,7 @@ interface KifayahManagerProps {
   members: Member[];
   kifayahList: KifayahEvent[];
   iuranList: IuranRecord[];
-  onSaveKifayah: (kifayah: KifayahEvent) => Promise<void>;
+  onSaveKifayah: (kifayah: KifayahEvent, deceasedMemberId?: string) => Promise<void>;
   onDeleteKifayah?: (id: string) => Promise<void> | void;
   onOpenLogin: () => void;
 }
@@ -45,11 +45,15 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
   const [editingKifayah, setEditingKifayah] = useState<KifayahEvent | null>(null);
   const [kifayahToDelete, setKifayahToDelete] = useState<KifayahEvent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Form State
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [isManualName, setIsManualName] = useState(false);
   const [deceasedName, setDeceasedName] = useState('');
   const [binBinti, setBinBinti] = useState('');
   const [deathDate, setDeathDate] = useState(new Date().toISOString().split('T')[0]);
-  const [heirName, setHeirName] = useState('');
-  const [address, setAddress] = useState('');
+  const [heirName, setHeirName] = useState('Anak');
+  const [address, setAddress] = useState('Dusun Tengah');
   const [targetPerMember, setTargetPerMember] = useState(settings.minIuran);
   const [assistanceGiven, setAssistanceGiven] = useState(settings.defaultSantunan);
   const [funeralCost, setFuneralCost] = useState(450000);
@@ -60,11 +64,13 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
 
   const handleOpenAdd = () => {
     setEditingKifayah(null);
+    setSelectedMemberId('');
+    setIsManualName(false);
     setDeceasedName('');
     setBinBinti('');
     setDeathDate(new Date().toISOString().split('T')[0]);
-    setHeirName('');
-    setAddress('');
+    setHeirName('Anak'); // Default Ahli Waris: Anak
+    setAddress('Dusun Tengah'); // Default Alamat Rumah Duka: Dusun Tengah
     setTargetPerMember(settings.minIuran);
     setAssistanceGiven(settings.defaultSantunan);
     setFuneralCost(450000);
@@ -74,11 +80,23 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
 
   const handleOpenEdit = (item: KifayahEvent) => {
     setEditingKifayah(item);
+    const matched = members.find(
+      (m) =>
+        (item.deceasedMemberId && m.id === item.deceasedMemberId) ||
+        m.name.toLowerCase() === item.deceasedName.trim().toLowerCase()
+    );
+    if (matched) {
+      setSelectedMemberId(matched.id);
+      setIsManualName(false);
+    } else {
+      setSelectedMemberId('');
+      setIsManualName(true);
+    }
     setDeceasedName(item.deceasedName);
     setBinBinti(item.binBinti || '');
     setDeathDate(item.deathDate);
-    setHeirName(item.heirName);
-    setAddress(item.address);
+    setHeirName(item.heirName || 'Anak');
+    setAddress(item.address || 'Dusun Tengah');
     setTargetPerMember(item.targetPerMember || settings.minIuran);
     setAssistanceGiven(item.assistanceGiven || 0);
     setFuneralCost(item.funeralCost || 0);
@@ -86,38 +104,88 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
     setShowAddModal(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deceasedName || !heirName) return;
+  const handleSelectMember = (memberId: string) => {
+    if (memberId === 'manual') {
+      setIsManualName(true);
+      setSelectedMemberId('');
+      setDeceasedName('');
+      return;
+    }
+    setSelectedMemberId(memberId);
+    setIsManualName(false);
+    const m = members.find((item) => item.id === memberId);
+    if (m) {
+      setDeceasedName(m.name);
+      if (m.address && m.address.trim()) {
+        const fullAddr = m.address.toLowerCase().includes('dusun')
+          ? m.address
+          : `${m.address}, ${m.rtRw || 'Dusun Tengah'}`;
+        setAddress(fullAddr);
+      } else {
+        setAddress(m.rtRw || 'Dusun Tengah');
+      }
+    } else {
+      setDeceasedName('');
+    }
+  };
+
+  const handleSubmit = async (e?: React.FormEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
+    if (!deceasedName.trim() || isSubmitting) return;
+
+    const finalHeir = heirName.trim() || 'Anak';
+    const finalAddress = address.trim() || 'Dusun Tengah';
 
     setIsSubmitting(true);
     const kifayahToSave: KifayahEvent = {
       id: editingKifayah ? editingKifayah.id : `KFY-${Date.now()}`,
-      deceasedName,
-      binBinti,
+      deceasedName: deceasedName.trim(),
+      deceasedMemberId: selectedMemberId || undefined,
+      binBinti: binBinti.trim(),
       deathDate,
-      heirName,
-      address,
+      heirName: finalHeir,
+      address: finalAddress,
       targetPerMember: Number(targetPerMember) || settings.minIuran,
       status: editingKifayah ? editingKifayah.status : 'aktif',
       assistanceGiven: Number(assistanceGiven) || 0,
       funeralCost: Number(funeralCost) || 0,
-      notes,
+      notes: notes.trim(),
       createdAt: editingKifayah ? editingKifayah.createdAt : new Date().toISOString(),
     };
 
     try {
-      await onSaveKifayah(kifayahToSave);
+      await onSaveKifayah(kifayahToSave, selectedMemberId || undefined);
       setShowAddModal(false);
       setEditingKifayah(null);
       // Reset form
+      setSelectedMemberId('');
       setDeceasedName('');
       setBinBinti('');
-      setHeirName('');
-      setAddress('');
+      setHeirName('Anak');
+      setAddress('Dusun Tengah');
       setNotes('');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Shortcut Enter untuk Simpan Kifayah instan di PC
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target instanceof HTMLButtonElement) {
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      if (e.target instanceof HTMLTextAreaElement && e.shiftKey) {
+        return;
+      }
+      e.preventDefault();
+      if (!deceasedName.trim()) {
+        return;
+      }
+      if (!isSubmitting) {
+        handleSubmit(e);
+      }
     }
   };
 
@@ -355,20 +423,78 @@ _${settings.whatsappFooter}_`;
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700">
-              
+            <form
+              onSubmit={handleSubmit}
+              onKeyDown={handleKeyDown}
+              className="p-6 overflow-y-auto space-y-4 text-xs text-slate-700"
+            >
               <div>
-                <label className="block font-bold mb-1">
-                  Nama Almarhum / Almarhumah <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={deceasedName}
-                  onChange={(e) => setDeceasedName(e.target.value)}
-                  placeholder="Contoh: Bpk. H. Sudirman"
-                  required
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold">
+                    Nama Almarhum / Almarhumah <span className="text-rose-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !isManualName;
+                      setIsManualName(next);
+                      if (next) {
+                        setSelectedMemberId('');
+                      }
+                    }}
+                    className="text-[11px] text-emerald-700 hover:text-emerald-800 font-semibold underline"
+                  >
+                    {isManualName ? '← Pilih dari Daftar Anggota' : '+ Ketik Manual (Bukan Anggota)'}
+                  </button>
+                </div>
+
+                {!isManualName ? (
+                  <select
+                    value={selectedMemberId}
+                    onChange={(e) => handleSelectMember(e.target.value)}
+                    required={!isManualName}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">-- Pilih Anggota Almarhum / Almarhumah --</option>
+                    {members
+                      .filter((m) => m.status !== 'almarhum')
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} — {m.rtRw || 'Dusun Tengah'} {m.address ? `(${m.address})` : ''} {m.status === 'non-aktif' ? '[Non-Aktif]' : ''}
+                        </option>
+                      ))}
+                    {members.filter((m) => m.status === 'almarhum').length > 0 && (
+                      <optgroup label="Sudah Pernah Ditandai Almarhum">
+                        {members
+                          .filter((m) => m.status === 'almarhum')
+                          .map((m) => (
+                            <option key={m.id} value={m.id} disabled>
+                              {m.name} — {m.rtRw} [Sudah Almarhum]
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    <option value="manual">+ Ketik Manual (Bukan Anggota Terdaftar)</option>
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={deceasedName}
+                    onChange={(e) => setDeceasedName(e.target.value)}
+                    placeholder="Contoh: Bpk. H. Sudirman"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                )}
+
+                {selectedMemberId && (
+                  <div className="mt-1.5 p-2 bg-amber-50 rounded-lg border border-amber-200 text-[11px] text-amber-800 flex items-start gap-1.5">
+                    <span className="font-bold shrink-0">ℹ️ Perhatian:</span>
+                    <span>
+                      Anggota <strong>{deceasedName}</strong> akan otomatis <strong>dinonaktifkan</strong> dari iuran dan ditandai sebagai <strong>Almarhum</strong> pada data anggota.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -403,7 +529,7 @@ _${settings.whatsappFooter}_`;
                   type="text"
                   value={heirName}
                   onChange={(e) => setHeirName(e.target.value)}
-                  placeholder="Contoh: Ibu Hj. Nurhayati (Istri)"
+                  placeholder="Anak"
                   required
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
@@ -415,7 +541,7 @@ _${settings.whatsappFooter}_`;
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Contoh: Jl. Kenanga No. 08, RT 01 / RW 03"
+                  placeholder="Dusun Tengah"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
@@ -463,24 +589,41 @@ _${settings.whatsappFooter}_`;
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setEditingKifayah(null);
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs active:scale-95"
-                >
-                  {isSubmitting ? 'Menyimpan...' : editingKifayah ? 'Simpan Perubahan Data' : 'Simpan Kifayah'}
-                </button>
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[10px] font-mono text-slate-700">
+                    ↵ Enter
+                  </span>
+                  <span>untuk Simpan Kifayah instan</span>
+                </span>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingKifayah(null);
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs active:scale-95 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      'Menyimpan...'
+                    ) : (
+                      <>
+                        <span>{editingKifayah ? 'Simpan Perubahan Data' : 'Simpan Kifayah'}</span>
+                        <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] bg-emerald-800 text-emerald-200 rounded font-mono">
+                          ↵ Enter
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

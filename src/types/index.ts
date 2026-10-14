@@ -7,13 +7,14 @@ export interface Member {
   rtRw: string;
   phone: string;
   address: string;
-  status: 'aktif' | 'non-aktif';
+  status: 'aktif' | 'non-aktif' | 'almarhum';
   joinDate: string;
 }
 
 export interface KifayahEvent {
   id: string;
   deceasedName: string;
+  deceasedMemberId?: string;
   binBinti: string;
   deathDate: string;
   heirName: string; // Nama Ahli Waris

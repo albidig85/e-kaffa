@@ -344,6 +344,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </button>
                           )}
                         </>
+                      ) : m.status === 'almarhum' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-800 text-white shadow-xs">
+                          Almarhum
+                        </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
                           <Clock className="w-3.5 h-3.5" />

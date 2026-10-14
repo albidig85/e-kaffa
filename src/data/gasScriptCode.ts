@@ -1,6 +1,6 @@
 export const GAS_SCRIPT_CODE = `/**
  * ============================================================================
- * e-Kaffa (Kas Kifayah Raudlatul Umam) - Google Apps Script Backend
+ * e-Kafah (Kas Kifayah Raudlatul Umam) - Google Apps Script Backend
  * ============================================================================
  * Kode ini bertugas untuk:
  * 1. Otomatis membuat 5 Sheet dengan Header rapi & berwarna:
@@ -10,7 +10,7 @@ export const GAS_SCRIPT_CODE = `/**
  *    - IURAN
  *    - PENGELUARAN
  * 2. Mengisi data awal secara otomatis bila masih kosong.
- * 3. Menyediakan API Web (GET & POST) untuk dihubungkan ke aplikasi web e-Kaffa.
+ * 3. Menyediakan API Web (GET & POST) untuk dihubungkan ke aplikasi web e-Kafah.
  * ============================================================================
  */
 
@@ -43,7 +43,7 @@ function doGet(e) {
     if (action === 'ping') {
       return createJsonResponse({
         success: true,
-        message: 'Koneksi ke Google Sheets e-Kaffa Berhasil!',
+        message: 'Koneksi ke Google Sheets e-Kafah Berhasil!',
         timestamp: new Date().toISOString()
       }, callback);
     }
@@ -67,6 +67,21 @@ function doGet(e) {
     if (action === 'delete_expense') {
       const id = e && e.parameter ? e.parameter.id : null;
       return deleteRowByFirstColumn(SHEET_NAMES.EXPENSES, id, callback);
+    }
+
+    // Aksi update pengaturan via GET (fallback aman tanpa CORS block)
+    if (action === 'update_settings' || action === 'save_settings') {
+      let settingsData = null;
+      if (e && e.parameter && e.parameter.data) {
+        try {
+          settingsData = JSON.parse(e.parameter.data);
+        } catch (err) {
+          settingsData = e.parameter;
+        }
+      } else if (e && e.parameter) {
+        settingsData = e.parameter;
+      }
+      return updateSettingsRecord(settingsData, callback);
     }
 
     // Default: Ambil seluruh data
@@ -101,6 +116,10 @@ function doPost(e) {
     if (action === 'init') {
       initializeAllSheets();
       return createJsonResponse({ success: true, message: 'Sheet berhasil diinisialisasi.' });
+    }
+
+    if (action === 'update_settings' || action === 'save_settings') {
+      return updateSettingsRecord(payload.data);
     }
 
     if (action === 'save_iuran') {
@@ -161,7 +180,7 @@ function initializeAllSheets() {
   setupSheet(ss, SHEET_NAMES.SETTINGS, [
     'KUNCI_SETTING', 'NILAI_SETTING', 'KETERANGAN'
   ], [
-    ['NAMA_APLIKASI', 'e-Kaffa', 'Nama aplikasi'],
+    ['NAMA_APLIKASI', 'e-Kafah', 'Nama aplikasi'],
     ['NAMA_LEMBAGA', 'Rukun Kifayah Raudlatul Umam', 'Nama paguyuban/masjid/RT'],
     ['MINIMAL_IURAN', '10000', 'Besaran iuran minimum per warga (Rp)'],
     ['DEFAULT_SANTUNAN', '1500000', 'Standar santunan duka cita (Rp)'],
@@ -213,7 +232,7 @@ function initializeAllSheets() {
     try { ss.deleteSheet(defaultSheet); } catch(e){}
   }
 
-  return 'Semua sheet e-Kaffa berhasil dibuat dan diformat otomatis.';
+  return 'Semua sheet e-Kafah berhasil dibuat dan diformat otomatis.';
 }
 
 /**
@@ -525,19 +544,23 @@ function saveExpenseRecord(exp) {
 /**
  * Memperbarui Pengaturan
  */
-function updateSettingsRecord(s) {
+function updateSettingsRecord(s, callback) {
+  if (!s) return createJsonResponse({ success: false, message: 'Data pengaturan kosong' }, callback);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
+  if (!sheet) return createJsonResponse({ success: false, message: 'Sheet PENGATURAN belum dibuat' }, callback);
   const data = sheet.getDataRange().getValues();
 
   function updateKey(key, value) {
+    if (value === undefined || value === null) return;
+    const strVal = String(value);
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][0]).trim() === key) {
-        sheet.getRange(i + 1, 2).setValue(value);
+        sheet.getRange(i + 1, 2).setValue(strVal);
         return;
       }
     }
-    sheet.appendRow([key, value, 'Custom setting']);
+    sheet.appendRow([key, strVal, 'Pengaturan sistem']);
   }
 
   if (s.minIuran !== undefined) updateKey('MINIMAL_IURAN', s.minIuran);
@@ -545,12 +568,16 @@ function updateSettingsRecord(s) {
   if (s.appName !== undefined) updateKey('NAMA_APLIKASI', s.appName);
   if (s.organizationName !== undefined) updateKey('NAMA_LEMBAGA', s.organizationName);
   if (s.adminUsername !== undefined) updateKey('ADMIN_USERNAME', s.adminUsername);
-  if (s.adminPasswordHash !== undefined) updateKey('ADMIN_PASSWORD', s.adminPasswordHash);
+
+  // Dukung kata sandi admin
+  const adminPass = s.adminPasswordHash !== undefined ? s.adminPasswordHash : s.adminPassword;
+  if (adminPass !== undefined) updateKey('ADMIN_PASSWORD', adminPass);
+
   if (s.treasurerName !== undefined) updateKey('NAMA_BENDAHARA', s.treasurerName);
   if (s.treasurerPhone !== undefined) updateKey('KONTAK_BENDAHARA', s.treasurerPhone);
   if (s.whatsappFooter !== undefined) updateKey('PESAN_FOOTER', s.whatsappFooter);
 
-  return createJsonResponse({ success: true, message: 'Pengaturan di Google Sheet berhasil diperbarui' });
+  return createJsonResponse({ success: true, message: 'Pengaturan di Google Sheet berhasil diperbarui' }, callback);
 }
 
 /**

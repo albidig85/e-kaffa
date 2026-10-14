@@ -46,7 +46,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   const [rtRw, setRtRw] = useState('Dusun Tengah');
   const [phone, setPhone] = useState('081xxx');
   const [address, setAddress] = useState('Dusun Tengah');
-  const [status, setStatus] = useState<'aktif' | 'non-aktif'>('aktif');
+  const [status, setStatus] = useState<'aktif' | 'non-aktif' | 'almarhum'>('aktif');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Ref untuk mengarahkan kursor otomatis ke isian Nama Lengkap
@@ -248,10 +248,12 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                     member.status === 'aktif'
                       ? 'bg-emerald-100 text-emerald-800'
+                      : member.status === 'almarhum'
+                      ? 'bg-slate-800 text-slate-100 border border-slate-700'
                       : 'bg-slate-100 text-slate-600'
                   }`}
                 >
-                  {member.status}
+                  {member.status === 'almarhum' ? 'Almarhum' : member.status}
                 </span>
               </div>
 
@@ -397,6 +399,7 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                 >
                   <option value="aktif">Aktif (Wajib Iuran)</option>
                   <option value="non-aktif">Non-Aktif (Pindah / Khusus)</option>
+                  <option value="almarhum">Almarhum (Non-Aktif)</option>
                 </select>
               </div>
 

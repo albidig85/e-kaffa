@@ -101,9 +101,9 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
     return ['Semua', ...list];
   }, [members]);
 
-  // Checklist Members Filter
+  // Checklist Members Filter (Hanya anggota aktif yang wajib iuran)
   const filteredChecklistMembers = useMemo(() => {
-    let result = members;
+    let result = members.filter((m) => m.status === 'aktif');
     if (checklistRt !== 'Semua') {
       result = result.filter((m) => m.rtRw === checklistRt);
     }
@@ -158,7 +158,7 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
       amount: amount,
       paymentDate: paymentDate,
       paymentMethod: paymentMethod,
-      recordedBy: settings.treasurerName || 'Admin e-Kaffa',
+      recordedBy: settings.treasurerName || 'Admin e-Kafah',
       receiptNumber: receiptNumber,
       notes: notes,
     };
@@ -196,7 +196,7 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
       amount: minRequired,
       paymentDate: dateStr,
       paymentMethod: 'Tunai',
-      recordedBy: settings.treasurerName || 'Admin e-Kaffa',
+      recordedBy: settings.treasurerName || 'Admin e-Kafah',
       receiptNumber: receiptNumber,
       notes: 'Checklist Cepat',
     };
@@ -225,7 +225,7 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
         amount: minRequired,
         paymentDate: dateStr,
         paymentMethod: 'Tunai',
-        recordedBy: settings.treasurerName || 'Admin e-Kaffa',
+        recordedBy: settings.treasurerName || 'Admin e-Kafah',
         receiptNumber: `KWT-${dateNum}-${Math.floor(100 + Math.random() * 900)}`,
         notes: 'Setor Kolektif',
       };

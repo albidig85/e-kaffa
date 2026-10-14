@@ -154,8 +154,15 @@ export default function App() {
 
       const d = remoteData.data;
       if (d.settings) {
+        const remoteSettings = d.settings;
         setSettings((prev) => {
-          const merged = { ...prev, ...d.settings };
+          const merged = { ...prev, ...remoteSettings };
+          if (!remoteSettings.adminPasswordHash && prev.adminPasswordHash) {
+            merged.adminPasswordHash = prev.adminPasswordHash;
+          }
+          if (!remoteSettings.adminUsername && prev.adminUsername) {
+            merged.adminUsername = prev.adminUsername;
+          }
           saveStoredSettings(merged);
           return merged;
         });
@@ -302,7 +309,7 @@ export default function App() {
     }
   };
 
-  const handleSaveKifayah = async (kifayah: KifayahEvent) => {
+  const handleSaveKifayah = async (kifayah: KifayahEvent, deceasedMemberId?: string) => {
     const existingIndex = kifayahList.findIndex((k) => k.id === kifayah.id);
     let updated: KifayahEvent[];
     if (existingIndex >= 0) {
@@ -318,6 +325,33 @@ export default function App() {
 
     if (settings.gasUrl) {
       GasService.syncKifayah(settings.gasUrl, kifayah);
+    }
+
+    // Ketika data almarhum diambil dari data anggota, otomatis nonaktifkan pada data anggota dan tandai sebagai Almarhum
+    const targetMemberId =
+      deceasedMemberId ||
+      kifayah.deceasedMemberId ||
+      members.find((m) => m.name.toLowerCase() === kifayah.deceasedName.trim().toLowerCase())?.id;
+
+    if (targetMemberId) {
+      const memberIndex = members.findIndex((m) => m.id === targetMemberId);
+      if (memberIndex >= 0) {
+        const targetMember = members[memberIndex];
+        if (targetMember.status !== 'almarhum') {
+          const updatedMember: Member = {
+            ...targetMember,
+            status: 'almarhum',
+          };
+          const updatedMembers = [...members];
+          updatedMembers[memberIndex] = updatedMember;
+          setMembers(updatedMembers);
+          saveStoredMembers(updatedMembers);
+          if (settings.gasUrl) {
+            GasService.syncMember(settings.gasUrl, updatedMember);
+          }
+          showToastNotification(`✓ Status keanggotaan "${targetMember.name}" otomatis disetel Nonaktif (Almarhum)`);
+        }
+      }
     }
   };
 
@@ -344,13 +378,26 @@ export default function App() {
     }
   };
 
-  const handleSaveSettings = (newSettings: AppSettings) => {
+  const handleSaveSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);
     saveStoredSettings(newSettings);
-    showToastNotification('✓ Pengaturan aplikasi & akun berhasil disimpan');
 
     if (newSettings.gasUrl) {
-      GasService.syncSettings(newSettings.gasUrl, newSettings);
+      setIsSyncing(true);
+      try {
+        const ok = await GasService.syncSettings(newSettings.gasUrl, newSettings);
+        if (ok) {
+          showToastNotification('✓ Pengaturan & sandi admin berhasil disimpan dan disinkronkan ke Google Sheet');
+        } else {
+          showToastNotification('✓ Pengaturan disimpan lokal (sinkronisasi Google Sheet tertunda)');
+        }
+      } catch (err) {
+        showToastNotification('✓ Pengaturan disimpan lokal di aplikasi');
+      } finally {
+        setIsSyncing(false);
+      }
+    } else {
+      showToastNotification('✓ Pengaturan aplikasi & akun berhasil disimpan');
     }
   };
 

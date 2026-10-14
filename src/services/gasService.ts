@@ -242,8 +242,31 @@ Periksa:
     return this.sendDataToGas(url, 'save_expense', expense);
   }
 
-  static async syncSettings(url: string, settings: Partial<AppSettings>): Promise<boolean> {
-    return this.sendDataToGas(url, 'update_settings', settings);
+  static async syncSettings(rawUrl: string, settings: Partial<AppSettings>): Promise<boolean> {
+    const url = normalizeGasUrl(rawUrl);
+    if (!url || !url.startsWith('http')) return false;
+
+    // 1. Coba kirim via POST
+    try {
+      const postSuccess = await this.sendDataToGas(url, 'update_settings', settings);
+      if (postSuccess) return true;
+    } catch {
+      // lanjutkan ke fallback GET
+    }
+
+    // 2. Fallback GET (aman dari kendala CORS pada browser & redirect Google Apps Script)
+    try {
+      const getUrl = `${url}${url.includes('?') ? '&' : '?'}action=update_settings&data=${encodeURIComponent(JSON.stringify(settings))}&_t=${Date.now()}`;
+      await fetch(getUrl, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+      });
+      return true;
+    } catch (err) {
+      console.warn('Fallback syncSettings GET gagal:', err);
+      return false;
+    }
   }
 
   /**

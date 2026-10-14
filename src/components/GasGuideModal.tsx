@@ -132,7 +132,7 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
                   <p>Di kanan atas halaman Apps Script, klik tombol biru <strong>Deploy (Terapkan)</strong> &gt; <strong>Deployment baru (New deployment)</strong>.</p>
                   <p>Klik ikon gerigi di sebelah kiri, pilih <strong>Aplikasi web (Web app)</strong>.</p>
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5 font-mono text-[11px]">
-                    <p><span className="text-slate-400">Deskripsi:</span> e-Kaffa Web API</p>
+                    <p><span className="text-slate-400">Deskripsi:</span> e-Kafah Web API</p>
                     <p><span className="text-slate-400">Jalankan sebagai (Execute as):</span> <strong>Saya (email Anda)</strong></p>
                     <p><span className="text-slate-400">Siapa yang memiliki akses (Who has access):</span> <strong className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded">Siapa saja (Anyone)</strong></p>
                   </div>
@@ -140,15 +140,19 @@ export const GasGuideModal: React.FC<GasGuideModalProps> = ({ isOpen, onClose })
                     *Catatan: Pastikan opsi "Who has access" adalah "Anyone" agar aplikasi di HP Android dan Vercel dapat membaca & mencatat iuran secara instan.
                   </p>
                   <p>Klik <strong>Deploy</strong>, lalu berikan izin Google (Review Permissions &gt; Pilih Akun &gt; Advanced &gt; Go to ... (unsafe) &gt; Allow).</p>
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 space-y-1">
+                    <span className="font-bold flex items-center gap-1 text-amber-950">💡 Jika sebelumnya sudah pernah deploy:</span>
+                    <p>Cukup klik <strong>Deploy</strong> &gt; <strong>Kelola deployment (Manage deployments)</strong> &gt; klik ikon <strong>Pensil (Edit)</strong> &gt; pada kolom Versi pilih <strong>"Versi baru" (New version)</strong> &gt; lalu klik <strong>Terapkan (Deploy)</strong>. URL Web App Anda tidak akan berubah.</p>
+                  </div>
                 </div>
 
                 <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">4</span>
-                  Salin URL Web App & Klik "Inisialisasi Otomatis" di e-Kaffa
+                  Salin URL Web App & Klik "Inisialisasi Otomatis" di e-Kafah
                 </h3>
                 <div className="text-xs text-slate-600 pl-8 space-y-2">
                   <p>Salin <strong>URL Aplikasi Web</strong> yang dihasilkan (berformat <code className="bg-slate-100 px-1 rounded">https://script.google.com/macros/s/.../exec</code>).</p>
-                  <p>Kembali ke aplikasi e-Kaffa ini, buka menu <strong>Pengaturan</strong>, masukkan URL tersebut, lalu klik tombol <strong>"Inisialisasi Sheet Otomatis"</strong>.</p>
+                  <p>Kembali ke aplikasi e-Kafah ini, buka menu <strong>Pengaturan</strong>, masukkan URL tersebut, lalu klik tombol <strong>"Inisialisasi Sheet Otomatis"</strong>.</p>
                   <p className="text-emerald-800 font-medium">Seketika itu juga, 5 sheet dengan header warna hijau rapi akan otomatis tercipta di spreadsheet Anda tanpa ribet!</p>
                 </div>
               </div>
@@ -201,7 +205,7 @@ vercel --prod`}
                   Memasang di HP Android Pengurus & Warga (PWA-Like)
                 </h3>
                 <div className="text-xs text-slate-600 pl-8 space-y-1.5">
-                  <p>Aplikasi e-Kaffa dirancang khusus untuk kenyamanan layar sentuh Android:</p>
+                  <p>Aplikasi e-Kafah dirancang khusus untuk kenyamanan layar sentuh Android:</p>
                   <ul className="list-disc list-inside space-y-1 text-slate-700">
                     <li>Buka tautan Vercel Anda di Google Chrome HP Android.</li>
                     <li>Ketuk ikon titik tiga (<strong>⋮</strong>) di pojok kanan atas browser.</li>
