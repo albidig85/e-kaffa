@@ -36,6 +36,7 @@ interface DashboardProps {
   onNavigate: (tab: any) => void;
   onOpenReceipt: (record: IuranRecord) => void;
   onOpenNewKifayah: () => void;
+  onOpenExpense: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -50,6 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigate,
   onOpenReceipt,
   onOpenNewKifayah,
+  onOpenExpense,
 }) => {
   const [searchMemberStatus, setSearchMemberStatus] = useState('');
 
@@ -112,13 +114,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="flex flex-wrap sm:flex-col gap-2 w-full sm:w-auto">
             {role === 'admin' ? (
-              <button
-                onClick={() => onNavigate('iuran')}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Catat Iuran Baru
-              </button>
+              <>
+                <button
+                  onClick={() => onNavigate('iuran')}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Catat Iuran
+                </button>
+                <button
+                  onClick={onOpenExpense}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-950/70 hover:bg-emerald-950/95 text-white border border-emerald-600/60 font-semibold text-xs rounded-xl shadow-xs transition-all active:scale-95"
+                >
+                  <TrendingDown className="w-4 h-4 text-rose-400" />
+                  <span>Catat Pengeluaran</span>
+                </button>
+              </>
             ) : (
               <button
                 onClick={() => {
@@ -130,19 +141,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               >
                 <Search className="w-4 h-4" />
                 Cek Pembayaran Iuran
-              </button>
-            )}
-
-            {/* Tombol Sinkronkan Data Google Sheet (Khusus Admin) */}
-            {role === 'admin' && settings.gasUrl && onRefreshData && (
-              <button
-                onClick={onRefreshData}
-                disabled={isSyncing}
-                title="Tarik data terbaru dari Google Sheet"
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-950/60 hover:bg-emerald-950/90 text-emerald-100 hover:text-white border border-emerald-600/50 rounded-xl text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-300' : 'text-emerald-200'}`} />
-                <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Google Sheet'}</span>
               </button>
             )}
           </div>

@@ -26,7 +26,7 @@ export const parseNumberFromDots = (val: string): number => {
   return cleaned ? parseInt(cleaned, 10) : 0;
 };
 
-export const CurrencyInput: React.FC<CurrencyInputProps> = ({
+export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(({
   value,
   onChange,
   prefix = 'Rp',
@@ -35,7 +35,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   required = false,
   disabled = false,
   ...props
-}) => {
+}, ref) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value;
     const numericVal = parseNumberFromDots(rawVal);
@@ -52,6 +52,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
         </span>
       )}
       <input
+        ref={ref}
         type="text"
         inputMode="numeric"
         value={displayString}
@@ -64,4 +65,6 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       />
     </div>
   );
-};
+});
+
+CurrencyInput.displayName = 'CurrencyInput';

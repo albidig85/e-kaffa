@@ -69,6 +69,21 @@ function doGet(e) {
       return deleteRowByFirstColumn(SHEET_NAMES.EXPENSES, id, callback);
     }
 
+    // Aksi simpan pengeluaran via GET (fallback aman tanpa CORS block)
+    if (action === 'save_expense') {
+      let expenseData = null;
+      if (e && e.parameter && e.parameter.data) {
+        try {
+          expenseData = JSON.parse(e.parameter.data);
+        } catch (err) {
+          expenseData = e.parameter;
+        }
+      } else if (e && e.parameter) {
+        expenseData = e.parameter;
+      }
+      return saveExpenseRecord(expenseData, callback);
+    }
+
     // Aksi update pengaturan via GET (fallback aman tanpa CORS block)
     if (action === 'update_settings' || action === 'save_settings') {
       let settingsData = null;
@@ -532,13 +547,15 @@ function saveKifayahRecord(k) {
 /**
  * Menyimpan Pengeluaran Kas
  */
-function saveExpenseRecord(exp) {
+function saveExpenseRecord(exp, callback) {
+  if (!exp) return createJsonResponse({ success: false, message: 'Data pengeluaran tidak valid atau kosong' }, callback);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.EXPENSES);
+  if (!sheet) return createJsonResponse({ success: false, message: 'Sheet PENGELUARAN tidak ditemukan' }, callback);
   sheet.appendRow([
-    exp.id, exp.date, exp.kifayahId || '-', exp.category, exp.amount, exp.recipient, exp.notes || ''
+    exp.id, exp.date, exp.kifayahId || '-', exp.category, Number(exp.amount) || 0, exp.recipient, exp.notes || ''
   ]);
-  return createJsonResponse({ success: true, message: 'Pengeluaran kas berhasil dicatat' });
+  return createJsonResponse({ success: true, message: 'Pengeluaran kas berhasil dicatat' }, callback);
 }
 
 /**

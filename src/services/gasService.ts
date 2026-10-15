@@ -238,8 +238,31 @@ Periksa:
     return this.sendDataToGas(url, 'save_kifayah', kifayah);
   }
 
-  static async syncExpense(url: string, expense: ExpenseRecord): Promise<boolean> {
-    return this.sendDataToGas(url, 'save_expense', expense);
+  static async syncExpense(rawUrl: string, expense: ExpenseRecord): Promise<boolean> {
+    const url = normalizeGasUrl(rawUrl);
+    if (!url || !url.startsWith('http')) return false;
+
+    // 1. Coba POST terlebih dahulu
+    try {
+      const postSuccess = await this.sendDataToGas(url, 'save_expense', expense);
+      if (postSuccess) return true;
+    } catch {
+      // lanjutkan ke fallback
+    }
+
+    // 2. Fallback GET (aman dari CORS block browser / Google Apps Script)
+    try {
+      const getUrl = `${url}${url.includes('?') ? '&' : '?'}action=save_expense&data=${encodeURIComponent(JSON.stringify(expense))}&_t=${Date.now()}`;
+      await fetch(getUrl, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+      });
+      return true;
+    } catch (err) {
+      console.warn('Fallback syncExpense GET gagal:', err);
+      return false;
+    }
   }
 
   static async syncSettings(rawUrl: string, settings: Partial<AppSettings>): Promise<boolean> {

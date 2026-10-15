@@ -36,6 +36,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { GasGuideModal } from './components/GasGuideModal';
 import { LoginModal } from './components/LoginModal';
 import { ReceiptModal } from './components/ReceiptModal';
+import { ExpenseModal } from './components/ExpenseModal';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const ADMIN_SESSION_DURATION = 60 * 60 * 1000; // 60 menit
@@ -75,6 +76,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [activeReceipt, setActiveReceipt] = useState<IuranRecord | null>(null);
 
   const showToastNotification = (text: string, isError = false) => {
@@ -435,6 +437,7 @@ export default function App() {
             onNavigate={(tab) => setActiveTab(tab)}
             onOpenReceipt={(rec) => setActiveReceipt(rec)}
             onOpenNewKifayah={() => setActiveTab('kifayah')}
+            onOpenExpense={() => setIsExpenseModalOpen(true)}
           />
         )}
 
@@ -534,6 +537,13 @@ export default function App() {
         receipt={activeReceipt}
         settings={settings}
         onClose={() => setActiveReceipt(null)}
+      />
+
+      <ExpenseModal
+        isOpen={isExpenseModalOpen}
+        onClose={() => setIsExpenseModalOpen(false)}
+        kifayahList={kifayahList}
+        onSaveExpense={handleSaveExpense}
       />
 
       {/* Toast Notification */}
