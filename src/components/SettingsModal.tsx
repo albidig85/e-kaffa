@@ -22,6 +22,7 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { CurrencyInput } from './CurrencyInput';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -471,6 +472,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* PWA Install Button inside Settings */}
+            <div className="pt-1">
+              <PWAInstallButton variant="full" appName={formData.appName} />
+            </div>
           </div>
 
           {/* Modal Footer Submit */}

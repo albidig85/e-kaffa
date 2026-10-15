@@ -37,6 +37,8 @@ import { GasGuideModal } from './components/GasGuideModal';
 import { LoginModal } from './components/LoginModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import { ExpenseModal } from './components/ExpenseModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const ADMIN_SESSION_DURATION = 60 * 60 * 1000; // 60 menit
@@ -545,6 +547,12 @@ export default function App() {
         kifayahList={kifayahList}
         onSaveExpense={handleSaveExpense}
       />
+
+      {/* Indikator Status Offline */}
+      <OfflineIndicator />
+
+      {/* Floating PWA Install Banner untuk Browser Smartphone */}
+      <PWAInstallBanner appName={settings.appName} />
 
       {/* Toast Notification */}
       {toastMessage && (

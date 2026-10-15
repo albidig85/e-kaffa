@@ -23,6 +23,7 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface DashboardProps {
   role: UserRole;
@@ -410,6 +411,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Widget Pasang Aplikasi PWA di HP */}
+      <PWAInstallButton variant="full" appName={settings.appName} />
 
     </div>
   );

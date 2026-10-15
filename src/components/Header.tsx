@@ -8,6 +8,7 @@ import {
   HeartHandshake,
   RefreshCw,
 } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   role: UserRole;
@@ -57,6 +58,9 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Action Icons & Badges */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          
+          {/* Tombol Pasang PWA */}
+          <PWAInstallButton appName={settings.appName} />
           
           {/* Tombol Sinkronkan Data Google Sheet (Khusus Admin) */}
           {role === 'admin' && hasGas && onRefreshData && (
