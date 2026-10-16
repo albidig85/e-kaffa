@@ -146,7 +146,7 @@ export default function App() {
   };
 
   /**
-   * Tarik data terbaru dari Google Sheets dengan opsi loading modal dialog (Silahkan Tunggu...).
+   * Tarik data terbaru dari Google Sheets dengan opsi loading modal dialog (Dentos Lun...).
    */
   const fetchAndApplyRemoteData = useCallback(async (options?: {
     showModal?: boolean;
@@ -164,8 +164,8 @@ export default function App() {
     if (options?.showModal) {
       setSyncModal({
         isOpen: true,
-        title: options.title || 'Silahkan Tunggu...',
-        message: options.message || 'Mengambil data dari Google Sheet...',
+        title: options.title || "Mukka' Data...",
+        message: options.message || "Ngala' data dari Google Sheet...",
       });
     }
     setIsSyncing(true);
@@ -234,8 +234,8 @@ export default function App() {
     if (settings.gasUrl) {
       fetchAndApplyRemoteData({
         showModal: true,
-        title: 'Silahkan Tunggu...',
-        message: 'Mengambil data dari Google Sheet...',
+        title: "Mukka' Data...",
+        message: "Ngala' data dari Google Sheet...",
       });
     }
   }, [settings.gasUrl, fetchAndApplyRemoteData]);
@@ -245,8 +245,8 @@ export default function App() {
     if (settings.gasUrl) {
       await fetchAndApplyRemoteData({
         showModal: true,
-        title: 'Silahkan Tunggu...',
-        message: `Mengambil data ${TAB_LABELS[targetTab]} dari Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Ngala' data ${TAB_LABELS[targetTab]} dari Google Sheet...`,
       });
     }
     setActiveTab(targetTab);
@@ -255,8 +255,8 @@ export default function App() {
   const handleRefreshData = () => {
     fetchAndApplyRemoteData({
       showModal: true,
-      title: 'Silahkan Tunggu...',
-      message: 'Menyinkronkan seluruh data dari Google Sheet...',
+      title: 'Dentos Lun...',
+      message: 'Menyinkronaghi sakabbhina data dari Google Sheet...',
       showToast: true,
     });
   };
@@ -291,8 +291,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: `Menyimpan catatan iuran "${record.memberName}" ke Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Nyimpen catetan iuran "${record.memberName}" ke Google Sheet...`,
       });
       try {
         await GasService.syncIuran(settings.gasUrl, record);
@@ -313,8 +313,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: `Menyimpan ${records.length} iuran warga ke Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Nyimpen ${records.length} iuran warga ke Google Sheet...`,
       });
       try {
         await GasService.syncBatchIuran(settings.gasUrl, records);
@@ -336,8 +336,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: 'Menghapus catatan iuran dari Google Sheet...',
+        title: 'Dentos Lun...',
+        message: 'Ngusot catetan iuran dari Google Sheet...',
       });
       try {
         await GasService.deleteIuran(settings.gasUrl, id);
@@ -365,8 +365,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: `Menyimpan data anggota "${member.name}" ke Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Nyimpen data anggota "${member.name}" ke Google Sheet...`,
       });
       try {
         await GasService.syncMember(settings.gasUrl, member);
@@ -392,8 +392,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: `Menghapus data "${deletedItem?.name || 'anggota'}" dari Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Ngusot data "${deletedItem?.name || 'anggota'}" dari Google Sheet...`,
       });
       try {
         await GasService.deleteMember(settings.gasUrl, id);
@@ -421,8 +421,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: `Menyimpan peristiwa kematian "${kifayah.deceasedName}" ke Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Nyimpen peristiwa kematian "${kifayah.deceasedName}" ke Google Sheet...`,
       });
       try {
         await GasService.syncKifayah(settings.gasUrl, kifayah);
@@ -476,8 +476,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: `Menghapus data kifayah "${deletedItem?.deceasedName || ''}" dari Google Sheet...`,
+        title: 'Dentos Lun...',
+        message: `Ngusot data kifayah "${deletedItem?.deceasedName || ''}" dari Google Sheet...`,
       });
       try {
         await GasService.deleteKifayah(settings.gasUrl, id);
@@ -498,8 +498,8 @@ export default function App() {
     if (settings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: 'Menyimpan catatan pengeluaran ke Google Sheet...',
+        title: 'Dentos Lun...',
+        message: 'Nyimpen catetan pengeluaran ke Google Sheet...',
       });
       try {
         await GasService.syncExpense(settings.gasUrl, expense);
@@ -519,8 +519,8 @@ export default function App() {
     if (newSettings.gasUrl) {
       setSyncModal({
         isOpen: true,
-        title: 'Silahkan Tunggu...',
-        message: 'Menyimpan pengaturan aplikasi ke Google Sheet...',
+        title: 'Dentos Lun...',
+        message: 'Nyimpen pengaturan aplikasi ke Google Sheet...',
       });
       setIsSyncing(true);
       try {
@@ -691,7 +691,7 @@ export default function App() {
       {/* Floating PWA Install Banner untuk Browser Smartphone */}
       <PWAInstallBanner appName={settings.appName} />
 
-      {/* Dialog Loading Spinner "Silahkan Tunggu..." (Sinkronisasi On-Demand Google Sheet) */}
+      {/* Dialog Loading Spinner "Dentos Lun..." (Sinkronisasi On-Demand Google Sheet) */}
       <SyncLoadingModal
         isOpen={syncModal.isOpen}
         title={syncModal.title}

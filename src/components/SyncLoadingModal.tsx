@@ -10,7 +10,7 @@ interface SyncLoadingModalProps {
 
 export const SyncLoadingModal: React.FC<SyncLoadingModalProps> = ({
   isOpen,
-  title = 'Silahkan Tunggu...',
+  title = 'Dentos Lun...',
   message = 'Mengambil data dari Google Sheet...',
   appName = 'e-Kafah',
 }) => {
@@ -30,7 +30,7 @@ export const SyncLoadingModal: React.FC<SyncLoadingModalProps> = ({
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Title "Silahkan Tunggu..." */}
+        {/* Title "Dentos Lun..." */}
         <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-6 drop-shadow-sm font-sans">
           {title}
         </h3>
