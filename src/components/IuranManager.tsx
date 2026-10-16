@@ -6,7 +6,7 @@ import {
   Member,
   UserRole,
 } from '../types';
-import { formatRupiah, formatDateID } from '../services/storageService';
+import { formatRupiah, formatDateID, isMemberObligatedToKifayah } from '../services/storageService';
 import {
   HandCoins,
   CheckCircle2,
@@ -91,7 +91,7 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
       (m) =>
         m.name.toLowerCase().includes(q) ||
         m.rtRw.toLowerCase().includes(q) ||
-        m.address.toLowerCase().includes(q)
+        (m.address || '').toLowerCase().includes(q)
     );
   }, [members, memberSearchQuery]);
 
@@ -101,14 +101,14 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
     return ['Semua', ...list];
   }, [members]);
 
-  // Checklist Members Filter (Hanya anggota aktif yang wajib iuran)
+  // Checklist Members Filter (Hanya anggota aktif yang memiliki kewajiban iuran untuk kifayah ini)
   const filteredChecklistMembers = useMemo(() => {
-    let result = members.filter((m) => m.status === 'aktif');
+    let result = members.filter((m) => isMemberObligatedToKifayah(m, currentKifayah));
     if (checklistRt !== 'Semua') {
       result = result.filter((m) => m.rtRw === checklistRt);
     }
     return result;
-  }, [members, checklistRt]);
+  }, [members, checklistRt, currentKifayah]);
 
   // Set of members who already paid for currentKifayah
   const paidMembersMap = useMemo(() => {
@@ -139,7 +139,8 @@ export const IuranManager: React.FC<IuranManagerProps> = ({
     if (!member) return;
 
     if (amount < minRequired) {
-      alert(`Besaran iuran minimal adalah ${formatRupiah(minRequired)} sesuai ketentuan!`);
+      setSuccessToast(`Besaran iuran minimal adalah ${formatRupiah(minRequired)} sesuai ketentuan!`);
+      setTimeout(() => setSuccessToast(null), 3500);
       return;
     }
 

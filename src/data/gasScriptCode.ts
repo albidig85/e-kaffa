@@ -206,22 +206,22 @@ function initializeAllSheets() {
     ['PESAN_FOOTER', 'Jazakumullah khairan katsiran atas sedekah jariyah bapak/ibu.', 'Pesan terima kasih WA']
   ], '#065F46');
 
-  // 2. Sheet ANGGOTA
+  // 2. Sheet ANGGOTA (Format Sederhana: ID_Anggota, Nama_Lengkap, Dusun, Status, Kewajiban_Kifayah, Tanggal_Daftar)
   setupSheet(ss, SHEET_NAMES.MEMBERS, [
-    'ID_Anggota', 'Nama_Lengkap', 'Keterangan_Tambahan', 'Dusun', 'Nomor_WA', 'Alamat', 'Status', 'Tanggal_Daftar'
+    'ID_Anggota', 'Nama_Lengkap', 'Dusun', 'Status', 'Kewajiban_Kifayah', 'Tanggal_Daftar'
   ], [
-    ['MBR-001', 'Bpk. Ahmad Supriyadi', '', 'Dusun 1', '081234567891', 'Jl. Kenanga No. 12', 'aktif', '2025-01-01'],
-    ['MBR-002', 'Bpk. H. Bambang Hartono', '', 'Dusun 1', '081234567892', 'Jl. Kenanga No. 15', 'aktif', '2025-01-01'],
-    ['MBR-003', 'Bpk. Dedi Darmawan', '', 'Dusun 2', '081234567893', 'Jl. Melati No. 04', 'aktif', '2025-01-02'],
-    ['MBR-004', 'Ibu Hj. Siti Aminah', '', 'Dusun 2', '081234567894', 'Jl. Melati No. 09', 'aktif', '2025-01-02'],
-    ['MBR-005', 'Bpk. Joko Purnomo', '', 'Dusun 3', '081234567895', 'Jl. Mawar No. 21', 'aktif', '2025-01-03']
+    ['MBR-001', 'Bpk. Ahmad Supriyadi', 'Dusun Tengah', 'aktif', 'Semua Kifayah', '2025-01-01'],
+    ['MBR-002', 'Bpk. H. Bambang Hartono', 'Dusun Tengah', 'aktif', 'Semua Kifayah', '2025-01-01'],
+    ['MBR-003', 'Bpk. Dedi Darmawan', 'Dusun Tengah', 'aktif', 'Semua Kifayah', '2025-01-02'],
+    ['MBR-004', 'Ibu Hj. Siti Aminah', 'Dusun Tengah', 'aktif', 'Semua Kifayah', '2025-01-02'],
+    ['MBR-005', 'Bpk. Joko Purnomo', 'Dusun Tengah', 'aktif', 'Semua Kifayah', '2025-01-03']
   ], '#065F46');
 
-  // 3. Sheet KIFAYAH
+  // 3. Sheet KIFAYAH (Sederhana: ID_Kifayah, Nama_Almarhum, Tanggal_Wafat, Status, Catatan, Dibuat_Pada)
   setupSheet(ss, SHEET_NAMES.KIFAYAH, [
-    'ID_Kifayah', 'Nama_Almarhum', 'Bin_Binti', 'Tanggal_Wafat', 'Nama_Ahli_Waris', 'Alamat_Duka', 'Target_Per_Warga', 'Status', 'Santunan_Diserahkan', 'Biaya_Kafan_Makam', 'Catatan', 'Dibuat_Pada'
+    'ID_Kifayah', 'Nama_Almarhum', 'Tanggal_Wafat', 'Status', 'Catatan', 'Dibuat_Pada'
   ], [
-    ['KFY-001', 'Alm. Bpk. H. Sudirman', 'Bin H. Mansyur', '2025-05-10', 'Ibu Nurhayati (Istri)', 'Jl. Kenanga No. 08, Dusun 1', '10000', 'aktif', '1500000', '450000', 'Wafat di RSUD karena sakit usia tua', new Date().toISOString()]
+    ['KFY-001', 'Alm. Bpk. H. Sudirman', '2025-05-10', 'aktif', 'Wafat di RSUD karena sakit usia tua', new Date().toISOString()]
   ], '#065F46');
 
   // 4. Sheet IURAN
@@ -324,52 +324,90 @@ function getAllDataFromSheets() {
     });
   }
 
-  // 2. Ambil Anggota
+  // 2. Ambil Anggota (Mendukung format 6 kolom baru maupun format 8 kolom lama)
   const membersSheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
   const members = [];
   if (membersSheet && membersSheet.getLastRow() > 1) {
-    const mData = membersSheet.getRange(2, 1, membersSheet.getLastRow() - 1, 8).getValues();
+    const numCols = membersSheet.getLastColumn();
+    const mData = membersSheet.getRange(2, 1, membersSheet.getLastRow() - 1, numCols).getValues();
+    const rawHeaders = membersSheet.getRange(1, 1, 1, numCols).getValues()[0];
+    const headerRow = rawHeaders.map(h => String(h).trim().toLowerCase());
+
+    const idxId = headerRow.findIndex(h => h.includes('id_anggota') || h.includes('id'));
+    const idxName = headerRow.findIndex(h => h.includes('nama'));
+    const idxDusun = headerRow.findIndex(h => h.includes('dusun') || h.includes('rt') || h.includes('rw'));
+    const idxStatus = headerRow.findIndex(h => h.includes('status'));
+    const idxKifayah = headerRow.findIndex(h => h.includes('kifayah') || h.includes('kewajiban') || h.includes('keterangan'));
+    const idxDate = headerRow.findIndex(h => h.includes('tanggal') || h.includes('daftar'));
+    const idxPhone = headerRow.findIndex(h => h.includes('wa') || h.includes('telp') || h.includes('phone'));
+    const idxAddress = headerRow.findIndex(h => h.includes('alamat'));
+
     mData.forEach((r, idx) => {
-      const idVal = String(r[0] || '').trim();
-      const nameVal = String(r[1] || '').trim();
+      const idVal = String((idxId >= 0 ? r[idxId] : r[0]) || '').trim();
+      const nameVal = String((idxName >= 0 ? r[idxName] : r[1]) || '').trim();
       if (idVal !== '' || nameVal !== '') {
+        const statusVal = String((idxStatus >= 0 ? r[idxStatus] : (r.length >= 7 ? r[6] : 'aktif')) || 'aktif').trim();
+        const rawKifayah = String((idxKifayah >= 0 ? r[idxKifayah] : '') || '').trim();
+        const kifayahArr = rawKifayah && rawKifayah !== '-' ? rawKifayah.split(',').map(s => s.trim()).filter(Boolean) : [];
+
         members.push({
           id: idVal || ('MBR-' + (idx + 1)),
           name: nameVal || idVal,
-          kkNumber: String(r[2] || ''),
-          rtRw: String(r[3] || 'Dusun 1'),
-          phone: String(r[4] || ''),
-          address: String(r[5] || ''),
-          status: String(r[6] || 'aktif'),
-          joinDate: formatDate(r[7]) || new Date().toISOString().split('T')[0]
+          rtRw: String((idxDusun >= 0 ? r[idxDusun] : (r[3] || 'Dusun Tengah')) || 'Dusun Tengah').trim(),
+          status: statusVal || 'aktif',
+          obligatedKifayahNames: kifayahArr,
+          phone: String((idxPhone >= 0 ? r[idxPhone] : '') || '').trim(),
+          address: String((idxAddress >= 0 ? r[idxAddress] : '') || '').trim(),
+          joinDate: formatDate(idxDate >= 0 ? r[idxDate] : (r.length >= 8 ? r[7] : null)) || new Date().toISOString().split('T')[0]
         });
       }
     });
   }
 
-  // 3. Ambil Kifayah
+  // 3. Ambil Kifayah (Mendukung format sederhana 6 kolom maupun format 12 kolom)
   const kifayahSheet = ss.getSheetByName(SHEET_NAMES.KIFAYAH);
   const kifayahList = [];
   if (kifayahSheet && kifayahSheet.getLastRow() > 1) {
-    const kData = kifayahSheet.getRange(2, 1, kifayahSheet.getLastRow() - 1, 12).getValues();
-    mDataLoop: kData.forEach((r, idx) => {
+    const numCols = kifayahSheet.getLastColumn();
+    const kData = kifayahSheet.getRange(2, 1, kifayahSheet.getLastRow() - 1, numCols).getValues();
+    const rawHeaders = kifayahSheet.getRange(1, 1, 1, numCols).getValues()[0];
+    const headerRow = rawHeaders.map(h => String(h).trim().toLowerCase());
+    const hasBinBinti = headerRow.includes('bin_binti') || headerRow.includes('bin / binti');
+
+    kData.forEach((r, idx) => {
       const idVal = String(r[0] || '').trim();
       const deceasedNameVal = String(r[1] || '').trim();
       if (idVal !== '' || deceasedNameVal !== '') {
-        kifayahList.push({
-          id: idVal || ('KFY-' + (idx + 1)),
-          deceasedName: deceasedNameVal || idVal,
-          binBinti: String(r[2] || ''),
-          deathDate: formatDate(r[3]) || new Date().toISOString().split('T')[0],
-          heirName: String(r[4] || ''),
-          address: String(r[5] || ''),
-          targetPerMember: Number(r[6]) || 10000,
-          status: String(r[7] || 'aktif'),
-          assistanceGiven: Number(r[8]) || 0,
-          funeralCost: Number(r[9]) || 0,
-          notes: String(r[10] || ''),
-          createdAt: formatDate(r[11]) || new Date().toISOString()
-        });
+        if (hasBinBinti && r.length >= 8) {
+          // Format 12 kolom lama
+          kifayahList.push({
+            id: idVal || ('KFY-' + (idx + 1)),
+            deceasedName: deceasedNameVal || idVal,
+            binBinti: String(r[2] || ''),
+            deathDate: formatDate(r[3]) || new Date().toISOString().split('T')[0],
+            heirName: String(r[4] || ''),
+            address: String(r[5] || ''),
+            targetPerMember: Number(r[6]) || 10000,
+            status: String(r[7] || 'aktif'),
+            assistanceGiven: Number(r[8]) || 0,
+            funeralCost: Number(r[9]) || 0,
+            notes: String(r[10] || ''),
+            createdAt: formatDate(r[11]) || new Date().toISOString()
+          });
+        } else {
+          // Format 6 kolom baru sederhana: ID_Kifayah, Nama_Almarhum, Tanggal_Wafat, Status, Catatan, Dibuat_Pada
+          kifayahList.push({
+            id: idVal || ('KFY-' + (idx + 1)),
+            deceasedName: deceasedNameVal || idVal,
+            deathDate: formatDate(r[2]) || new Date().toISOString().split('T')[0],
+            status: String(r[3] || 'aktif'),
+            notes: String(r[4] || ''),
+            createdAt: formatDate(r[5]) || new Date().toISOString(),
+            targetPerMember: 10000,
+            assistanceGiven: 0,
+            funeralCost: 0
+          });
+        }
       }
     });
   }
@@ -491,7 +529,7 @@ function batchSaveIuran(items) {
  */
 function saveMemberRecord(m) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.MEMBERS);
+  const sheet = ss.getSheetByName(SHEET_NAMES.MEMBERS) || (initializeAllSheets(), ss.getSheetByName(SHEET_NAMES.MEMBERS));
   const data = sheet.getDataRange().getValues();
   let rowIndex = -1;
 
@@ -502,16 +540,50 @@ function saveMemberRecord(m) {
     }
   }
 
-  const rowValues = [
-    m.id, m.name, m.kkNumber || '', m.rtRw, m.phone || '', m.address || '', m.status || 'aktif', m.joinDate || new Date().toISOString().split('T')[0]
-  ];
+  const rawHeaders = data.length > 0 ? data[0] : [];
+  const headerRow = rawHeaders.map(h => String(h).trim().toLowerCase());
+  const hasPhoneOrAddress = headerRow.includes('nomor_wa') || headerRow.includes('alamat');
 
-  if (rowIndex > 0) {
-    sheet.getRange(rowIndex, 1, 1, 8).setValues([rowValues]);
-    return createJsonResponse({ success: true, message: 'Data anggota diperbarui' });
+  const kifayahStr = (m.obligatedKifayahNames && m.obligatedKifayahNames.length > 0)
+    ? m.obligatedKifayahNames.join(', ')
+    : (m.status === 'aktif' ? 'Semua Kifayah' : '-');
+
+  if (hasPhoneOrAddress) {
+    // Format 8 kolom lama jika sheet belum disederhanakan
+    const rowValues = [
+      m.id,
+      m.name,
+      kifayahStr,
+      m.rtRw || 'Dusun Tengah',
+      m.phone || '',
+      m.address || '',
+      m.status || 'aktif',
+      m.joinDate || new Date().toISOString().split('T')[0]
+    ];
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, 8).setValues([rowValues]);
+      return createJsonResponse({ success: true, message: 'Data anggota diperbarui' });
+    } else {
+      sheet.appendRow(rowValues);
+      return createJsonResponse({ success: true, message: 'Anggota baru berhasil ditambahkan' });
+    }
   } else {
-    sheet.appendRow(rowValues);
-    return createJsonResponse({ success: true, message: 'Anggota baru berhasil ditambahkan' });
+    // Format 6 kolom baru: ID_Anggota, Nama_Lengkap, Dusun, Status, Kewajiban_Kifayah, Tanggal_Daftar
+    const rowValues = [
+      m.id,
+      m.name,
+      m.rtRw || 'Dusun Tengah',
+      m.status || 'aktif',
+      kifayahStr,
+      m.joinDate || new Date().toISOString().split('T')[0]
+    ];
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, 6).setValues([rowValues]);
+      return createJsonResponse({ success: true, message: 'Data anggota diperbarui' });
+    } else {
+      sheet.appendRow(rowValues);
+      return createJsonResponse({ success: true, message: 'Anggota baru berhasil ditambahkan' });
+    }
   }
 }
 
@@ -520,10 +592,13 @@ function saveMemberRecord(m) {
  */
 function saveKifayahRecord(k) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.KIFAYAH);
+  const sheet = ss.getSheetByName(SHEET_NAMES.KIFAYAH) || (initializeAllSheets(), ss.getSheetByName(SHEET_NAMES.KIFAYAH));
   const data = sheet.getDataRange().getValues();
-  let rowIndex = -1;
+  const rawHeaders = data.length > 0 ? data[0] : [];
+  const headerRow = rawHeaders.map(h => String(h).trim().toLowerCase());
+  const hasBinBinti = headerRow.includes('bin_binti') || headerRow.includes('bin / binti');
 
+  let rowIndex = -1;
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(k.id)) {
       rowIndex = i + 1;
@@ -531,16 +606,30 @@ function saveKifayahRecord(k) {
     }
   }
 
-  const rowValues = [
-    k.id, k.deceasedName, k.binBinti || '', k.deathDate, k.heirName, k.address, k.targetPerMember || 10000, k.status || 'aktif', k.assistanceGiven || 0, k.funeralCost || 0, k.notes || '', k.createdAt || new Date().toISOString()
-  ];
-
-  if (rowIndex > 0) {
-    sheet.getRange(rowIndex, 1, 1, 12).setValues([rowValues]);
-    return createJsonResponse({ success: true, message: 'Data kifayah diperbarui' });
+  if (hasBinBinti) {
+    // Kompatibilitas dengan 12 kolom lama jika sheet belum disederhanakan
+    const rowValues = [
+      k.id, k.deceasedName, k.binBinti || '', k.deathDate, k.heirName || '', k.address || '', k.targetPerMember || 10000, k.status || 'aktif', k.assistanceGiven || 0, k.funeralCost || 0, k.notes || '', k.createdAt || new Date().toISOString()
+    ];
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, 12).setValues([rowValues]);
+      return createJsonResponse({ success: true, message: 'Data kifayah diperbarui' });
+    } else {
+      sheet.appendRow(rowValues);
+      return createJsonResponse({ success: true, message: 'Data kifayah baru disimpan' });
+    }
   } else {
-    sheet.appendRow(rowValues);
-    return createJsonResponse({ success: true, message: 'Data kifayah baru disimpan' });
+    // Format baru disederhanakan (6 kolom: ID_Kifayah, Nama_Almarhum, Tanggal_Wafat, Status, Catatan, Dibuat_Pada)
+    const rowValues = [
+      k.id, k.deceasedName, k.deathDate, k.status || 'aktif', k.notes || '', k.createdAt || new Date().toISOString()
+    ];
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, 6).setValues([rowValues]);
+      return createJsonResponse({ success: true, message: 'Data kifayah diperbarui' });
+    } else {
+      sheet.appendRow(rowValues);
+      return createJsonResponse({ success: true, message: 'Data kifayah baru disimpan' });
+    }
   }
 }
 
@@ -550,8 +639,7 @@ function saveKifayahRecord(k) {
 function saveExpenseRecord(exp, callback) {
   if (!exp) return createJsonResponse({ success: false, message: 'Data pengeluaran tidak valid atau kosong' }, callback);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.EXPENSES);
-  if (!sheet) return createJsonResponse({ success: false, message: 'Sheet PENGELUARAN tidak ditemukan' }, callback);
+  const sheet = ss.getSheetByName(SHEET_NAMES.EXPENSES) || (initializeAllSheets(), ss.getSheetByName(SHEET_NAMES.EXPENSES));
   sheet.appendRow([
     exp.id, exp.date, exp.kifayahId || '-', exp.category, Number(exp.amount) || 0, exp.recipient, exp.notes || ''
   ]);
@@ -564,8 +652,7 @@ function saveExpenseRecord(exp, callback) {
 function updateSettingsRecord(s, callback) {
   if (!s) return createJsonResponse({ success: false, message: 'Data pengaturan kosong' }, callback);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.SETTINGS);
-  if (!sheet) return createJsonResponse({ success: false, message: 'Sheet PENGATURAN belum dibuat' }, callback);
+  const sheet = ss.getSheetByName(SHEET_NAMES.SETTINGS) || (initializeAllSheets(), ss.getSheetByName(SHEET_NAMES.SETTINGS));
   const data = sheet.getDataRange().getValues();
 
   function updateKey(key, value) {
@@ -610,8 +697,7 @@ function deleteRowByFirstColumn(sheetName, idValue, callback) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     const col0 = String(data[i][0] || '').trim();
-    const col1 = String(data[i][1] || '').trim();
-    if (col0 === target || (col1 && col1 === target)) {
+    if (col0 === target) {
       sheet.deleteRow(i + 1);
       return createJsonResponse({ success: true, message: 'Baris ' + target + ' berhasil dihapus dari sheet ' + sheetName }, callback);
     }

@@ -1,26 +1,25 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { AppSettings, Member, UserRole } from '../types';
+import { AppSettings, KifayahEvent, Member, UserRole } from '../types';
 import {
   Users,
   PlusCircle,
   Search,
-  Phone,
-  MapPin,
   CheckCircle,
-  XCircle,
   Edit,
   X,
-  MessageCircle,
   Lock,
   Trash2,
+  HeartHandshake,
 } from 'lucide-react';
 
 import { ConfirmModal } from './ConfirmModal';
+import { getMemberObligationSummary, isMemberObligatedToKifayah } from '../services/storageService';
 
 interface MemberManagerProps {
   role: UserRole;
   settings: AppSettings;
   members: Member[];
+  kifayahList: KifayahEvent[];
   onSaveMember: (member: Member) => Promise<void>;
   onDeleteMember?: (id: string) => Promise<void> | void;
   onOpenLogin: () => void;
@@ -30,23 +29,25 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
   role,
   settings,
   members,
+  kifayahList,
   onSaveMember,
   onDeleteMember,
   onOpenLogin,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRt, setFilterRt] = useState('Semua');
+  const [filterKifayah, setFilterKifayah] = useState('Semua');
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Form State dengan default Dusun Tengah, 081xxx, dan Dusun Tengah
+  // Form State (Hanya Nama Lengkap, Dusun, Status, dan Pilihan Kewajiban Kifayah)
   const [name, setName] = useState('');
   const [rtRw, setRtRw] = useState('Dusun Tengah');
-  const [phone, setPhone] = useState('081xxx');
-  const [address, setAddress] = useState('Dusun Tengah');
   const [status, setStatus] = useState<'aktif' | 'non-aktif' | 'almarhum'>('aktif');
+  const [isAllKifayah, setIsAllKifayah] = useState(true);
+  const [obligatedKifayahIds, setObligatedKifayahIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Ref untuk mengarahkan kursor otomatis ke isian Nama Lengkap
@@ -85,20 +86,26 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       const matchQuery =
         !searchQuery.trim() ||
         m.name.toLowerCase().includes(q) ||
-        m.address.toLowerCase().includes(q) ||
-        m.phone.includes(q) ||
-        m.rtRw.toLowerCase().includes(q);
-      return matchRt && matchQuery;
+        m.rtRw.toLowerCase().includes(q) ||
+        (m.obligatedKifayahNames && m.obligatedKifayahNames.some((n) => n.toLowerCase().includes(q)));
+
+      let matchKifayah = true;
+      if (filterKifayah !== 'Semua') {
+        const targetK = kifayahList.find((k) => k.id === filterKifayah);
+        matchKifayah = isMemberObligatedToKifayah(m, targetK);
+      }
+
+      return matchRt && matchQuery && matchKifayah;
     });
-  }, [members, filterRt, searchQuery]);
+  }, [members, filterRt, filterKifayah, searchQuery, kifayahList]);
 
   const handleOpenAdd = () => {
     setEditingMember(null);
     setName('');
     setRtRw('Dusun Tengah');
-    setPhone('081xxx');
-    setAddress('Dusun Tengah');
     setStatus('aktif');
+    setIsAllKifayah(true);
+    setObligatedKifayahIds([]);
     setShowModal(true);
   };
 
@@ -106,10 +113,52 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
     setEditingMember(m);
     setName(m.name);
     setRtRw(m.rtRw || 'Dusun Tengah');
-    setPhone(m.phone || '081xxx');
-    setAddress(m.address || 'Dusun Tengah');
     setStatus(m.status);
+
+    const hasSpecificIds =
+      m.obligatedKifayahIds &&
+      m.obligatedKifayahIds.length > 0 &&
+      !m.obligatedKifayahIds.includes('all');
+
+    const hasSpecificNames =
+      m.obligatedKifayahNames &&
+      m.obligatedKifayahNames.length > 0 &&
+      !m.obligatedKifayahNames.includes('Semua Kifayah');
+
+    if (hasSpecificIds) {
+      setIsAllKifayah(false);
+      setObligatedKifayahIds(m.obligatedKifayahIds!);
+    } else if (hasSpecificNames) {
+      setIsAllKifayah(false);
+      const matchedIds = kifayahList
+        .filter((k) =>
+          m.obligatedKifayahNames?.some(
+            (n) => n.toLowerCase() === k.deceasedName.trim().toLowerCase()
+          )
+        )
+        .map((k) => k.id);
+      setObligatedKifayahIds(matchedIds);
+    } else {
+      setIsAllKifayah(true);
+      setObligatedKifayahIds([]);
+    }
+
     setShowModal(true);
+  };
+
+  const handleToggleKifayah = (kifayahId: string) => {
+    setIsAllKifayah(false);
+    setObligatedKifayahIds((prev) => {
+      if (prev.includes(kifayahId)) {
+        const next = prev.filter((id) => id !== kifayahId);
+        if (next.length === 0) {
+          setIsAllKifayah(true);
+        }
+        return next;
+      } else {
+        return [...prev, kifayahId];
+      }
+    });
   };
 
   const handleSubmit = async (e?: React.FormEvent | React.KeyboardEvent) => {
@@ -117,15 +166,33 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
     if (!name.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
+
+    let finalObligatedIds: string[] = [];
+    let finalObligatedNames: string[] = [];
+
+    if (status === 'aktif') {
+      if (isAllKifayah || obligatedKifayahIds.length === 0) {
+        finalObligatedIds = ['all'];
+        finalObligatedNames = ['Semua Kifayah'];
+      } else {
+        finalObligatedIds = [...obligatedKifayahIds];
+        finalObligatedNames = obligatedKifayahIds
+          .map((id) => kifayahList.find((k) => k.id === id)?.deceasedName)
+          .filter(Boolean) as string[];
+      }
+    }
+
     const memberToSave: Member = {
       id: editingMember ? editingMember.id : `MBR-${Date.now().toString().slice(-4)}`,
       name: name.trim(),
-      kkNumber: editingMember ? (editingMember.kkNumber || '') : '',
       rtRw: rtRw.trim() || 'Dusun Tengah',
-      phone: phone.trim(),
-      address: address.trim(),
       status,
+      obligatedKifayahIds: finalObligatedIds,
+      obligatedKifayahNames: finalObligatedNames,
       joinDate: editingMember ? editingMember.joinDate : new Date().toISOString().split('T')[0],
+      phone: editingMember?.phone || '',
+      address: editingMember?.address || '',
+      kkNumber: editingMember?.kkNumber || '',
     };
 
     try {
@@ -155,14 +222,6 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
         handleSubmit(e);
       }
     }
-  };
-
-  const handleWhatsAppChat = (phoneNum: string, memberName: string) => {
-    if (!phoneNum) return;
-    const cleanPhone = phoneNum.replace(/[^0-9]/g, '');
-    const formatted = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
-    const msg = `Assalamu'alaikum Bpk/Ibu *${memberName}*, kami dari pengurus ${settings.organizationName}...`;
-    window.open(`https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
   return (
@@ -200,94 +259,129 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari nama anggota, alamat, Dusun, no telpon/WA..."
+            placeholder="Cari nama anggota, Dusun, atau nama kifayah..."
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-semibold shrink-0">Dusun:</span>
-          <select
-            value={filterRt}
-            onChange={(e) => setFilterRt(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            {uniqueRtList.map((rt) => (
-              <option key={rt} value={rt}>
-                {rt === 'Semua' ? 'Semua Dusun' : (rt.toLowerCase().includes('dusun') ? rt : `Dusun ${rt}`)}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filter Dusun */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 font-semibold shrink-0">Dusun:</span>
+            <select
+              value={filterRt}
+              onChange={(e) => setFilterRt(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {uniqueRtList.map((rt) => (
+                <option key={rt} value={rt}>
+                  {rt === 'Semua' ? 'Semua Dusun' : (rt.toLowerCase().includes('dusun') ? rt : `Dusun ${rt}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filter Kewajiban Kifayah */}
+          {kifayahList.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 font-semibold shrink-0">Wajib Kifayah:</span>
+              <select
+                value={filterKifayah}
+                onChange={(e) => setFilterKifayah(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 max-w-[200px] truncate"
+              >
+                <option value="Semua">Semua Kifayah</option>
+                {kifayahList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.deceasedName} ({k.status === 'aktif' ? 'Aktif' : 'Selesai'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Member List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filteredMembers.map((member) => (
-          <div
-            key={member.id}
-            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between gap-3 text-xs"
-          >
-            <div>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">{member.name}</h3>
-                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md inline-block mt-0.5">
-                    {member.rtRw.toLowerCase().includes('dusun') ? member.rtRw : `Dusun ${member.rtRw}`}
+        {filteredMembers.map((member) => {
+          const obligationSummary = getMemberObligationSummary(member, kifayahList);
+
+          return (
+            <div
+              key={member.id}
+              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between gap-3 text-xs"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">{member.name}</h3>
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                      {member.rtRw.toLowerCase().includes('dusun') ? member.rtRw : `Dusun ${member.rtRw}`}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      member.status === 'aktif'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : member.status === 'almarhum'
+                        ? 'bg-slate-800 text-slate-100 border border-slate-700'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {member.status === 'almarhum' ? 'Almarhum' : member.status}
                   </span>
                 </div>
 
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    member.status === 'aktif'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : member.status === 'almarhum'
-                      ? 'bg-slate-800 text-slate-100 border border-slate-700'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {member.status === 'almarhum' ? 'Almarhum' : member.status}
-                </span>
+                {/* Status Keanggotaan & Nama-Nama Kifayah yang Diwajibkan Iurannya */}
+                <div className="mt-3 p-2.5 bg-slate-50 border border-slate-200/70 rounded-xl space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                    <HeartHandshake className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Kewajiban Iuran Kifayah:</span>
+                  </div>
+
+                  {member.status === 'aktif' ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {obligationSummary === 'Semua Kifayah' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-900 font-bold text-[11px] rounded-lg border border-emerald-200/60">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-700" />
+                          <span>Semua Kifayah</span>
+                        </span>
+                      ) : (
+                        obligationSummary.split(', ').map((kName, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-900 font-bold text-[11px] rounded-lg border border-amber-300 shadow-2xs"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            <span>Wajib: {kName}</span>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 italic">
+                      {member.status === 'almarhum'
+                        ? 'Almarhum (Telah dibebaskan dari iuran)'
+                        : 'Non-Aktif (Bebas dari kewajiban iuran)'}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-2.5 text-slate-600 space-y-1">
-                <p className="flex items-center gap-1.5 text-[11px]">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="truncate">{member.address || 'Alamat belum diisi'}</span>
-                </p>
-
-                {member.phone && (
-                  <p className="flex items-center gap-1.5 text-[11px]">
-                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{member.phone}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-mono">ID: {member.id}</span>
-
-              <div className="flex items-center gap-1.5">
-                {member.phone && (
-                  <button
-                    onClick={() => handleWhatsAppChat(member.phone, member.name)}
-                    className="p-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                    title="Kirim Pesan WhatsApp"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                  </button>
-                )}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] text-slate-400 font-mono">ID: {member.id}</span>
 
                 {role === 'admin' && (
-                  <>
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleOpenEdit(member)}
                       className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
@@ -303,12 +397,12 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Modal Add/Edit Member */}
@@ -348,45 +442,21 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Contoh: Bpk. Ahmad Supriyadi"
                   required
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1">
-                    Dusun <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={rtRw}
-                    onChange={(e) => setRtRw(e.target.value)}
-                    placeholder="Dusun Tengah"
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1">Nomor WhatsApp</label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="081xxx"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block font-bold mb-1">Alamat Rumah</label>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                <label className="block font-bold mb-1">
+                  Dusun <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={rtRw}
+                  onChange={(e) => setRtRw(e.target.value)}
                   placeholder="Dusun Tengah"
-                  rows={2}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
+                  required
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
@@ -395,13 +465,111 @@ export const MemberManager: React.FC<MemberManagerProps> = ({
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="aktif">Aktif (Wajib Iuran)</option>
                   <option value="non-aktif">Non-Aktif (Pindah / Khusus)</option>
                   <option value="almarhum">Almarhum (Non-Aktif)</option>
                 </select>
               </div>
+
+              {/* Status Keanggotaan: Nama-Nama Kifayah yang Diwajibkan Iurannya */}
+              {status === 'aktif' && (
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-emerald-950 text-xs flex items-center gap-1.5">
+                      <HeartHandshake className="w-4 h-4 text-emerald-700" />
+                      Kewajiban Iuran Kifayah:
+                    </label>
+                    <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+                      {isAllKifayah ? 'Semua Kifayah' : `${obligatedKifayahIds.length} Kifayah Dipilih`}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-emerald-800/90 leading-tight">
+                    Tentukan kepada kifayah siapa saja anggota ini memiliki kewajiban iuran:
+                  </p>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAllKifayah(true);
+                        setObligatedKifayahIds([]);
+                      }}
+                      className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-bold border transition-all ${
+                        isAllKifayah
+                          ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                          : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-100/50'
+                      }`}
+                    >
+                      ✓ Wajib Semua Kifayah
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAllKifayah(false);
+                        if (obligatedKifayahIds.length === 0 && kifayahList.length > 0) {
+                          setObligatedKifayahIds([kifayahList[0].id]);
+                        }
+                      }}
+                      className={`flex-1 py-1.5 px-2.5 rounded-lg text-[11px] font-bold border transition-all ${
+                        !isAllKifayah
+                          ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                          : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-100/50'
+                      }`}
+                    >
+                      Pilih Kifayah Tertentu
+                    </button>
+                  </div>
+
+                  {/* Daftar Checklist Kifayah jika memilih tertentu */}
+                  {!isAllKifayah && (
+                    <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
+                      {kifayahList.length === 0 ? (
+                        <div className="p-3 bg-white rounded-lg border border-emerald-200 text-[11px] text-slate-500 text-center">
+                          Belum ada data peristiwa kifayah di aplikasi. Anggota akan otomatis mengikuti kifayah saat peristiwa baru dicatat.
+                        </div>
+                      ) : (
+                        kifayahList.map((k) => {
+                          const isChecked = obligatedKifayahIds.includes(k.id);
+                          return (
+                            <label
+                              key={k.id}
+                              className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                                isChecked
+                                  ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleToggleKifayah(k.id)}
+                                  className="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"
+                                />
+                                <span className="truncate text-xs">
+                                  Kifayah {k.deceasedName}
+                                </span>
+                              </div>
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                  k.status === 'aktif'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {k.status === 'aktif' ? 'Aktif' : 'Selesai'}
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-[11px] text-slate-500 flex items-center gap-1">

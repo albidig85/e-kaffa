@@ -176,22 +176,28 @@ Periksa:
     const cacheBuster = `_t=${Date.now()}`;
     const fetchUrl = `${url}${url.includes('?') ? '&' : '?'}action=get_all_data&${cacheBuster}`;
 
+    // 1. Coba fetch standar dengan batas waktu cepat
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
       const res = await fetch(fetchUrl, {
         method: 'GET',
         redirect: 'follow',
         cache: 'no-store',
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         return await res.json();
       }
     } catch (err) {
-      // Fallback JSONP
+      // Lanjut ke fallback JSONP jika fetch diblokir CORS atau timeout
     }
 
+    // 2. Fallback JSONP
     try {
-      const jsonpData = await fetchWithJsonp<GasApiResponse>(fetchUrl);
+      const jsonpData = await fetchWithJsonp<GasApiResponse>(fetchUrl, 10000);
       return jsonpData;
     } catch {
       return null;
@@ -309,7 +315,8 @@ Periksa:
 
     // 2. Fallback GET (100% lolos tanpa CORS blocker di Google Apps Script)
     try {
-      const getUrl = `${url}${url.includes('?') ? '&' : '?'}&action=${action}&id=${encodeURIComponent(id)}&_t=${Date.now()}`;
+      const separator = url.includes('?') ? '&' : '?';
+      const getUrl = `${url}${separator}action=${action}&id=${encodeURIComponent(id)}&_t=${Date.now()}`;
       await fetch(getUrl, {
         method: 'GET',
         mode: 'no-cors',

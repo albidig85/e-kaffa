@@ -7,18 +7,13 @@ import {
   Calendar,
   User,
   MapPin,
-  CheckCircle2,
-  Clock,
   Share2,
-  TrendingUp,
-  Receipt,
   X,
-  Lock,
   Edit,
   Trash2,
+  Lock,
 } from 'lucide-react';
 import { ConfirmModal } from './ConfirmModal';
-import { CurrencyInput } from './CurrencyInput';
 
 interface KifayahManagerProps {
   role: UserRole;
@@ -46,17 +41,11 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
   const [kifayahToDelete, setKifayahToDelete] = useState<KifayahEvent | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Form State
+  // Form State (Hanya Nama Almarhum, Tanggal Wafat, dan Catatan Tambahan)
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [isManualName, setIsManualName] = useState(false);
   const [deceasedName, setDeceasedName] = useState('');
-  const [binBinti, setBinBinti] = useState('');
   const [deathDate, setDeathDate] = useState(new Date().toISOString().split('T')[0]);
-  const [heirName, setHeirName] = useState('Anak');
-  const [address, setAddress] = useState('Dusun Tengah');
-  const [targetPerMember, setTargetPerMember] = useState(settings.minIuran);
-  const [assistanceGiven, setAssistanceGiven] = useState(settings.defaultSantunan);
-  const [funeralCost, setFuneralCost] = useState(450000);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,13 +56,7 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
     setSelectedMemberId('');
     setIsManualName(false);
     setDeceasedName('');
-    setBinBinti('');
     setDeathDate(new Date().toISOString().split('T')[0]);
-    setHeirName('Anak'); // Default Ahli Waris: Anak
-    setAddress('Dusun Tengah'); // Default Alamat Rumah Duka: Dusun Tengah
-    setTargetPerMember(settings.minIuran);
-    setAssistanceGiven(settings.defaultSantunan);
-    setFuneralCost(450000);
     setNotes('');
     setShowAddModal(true);
   };
@@ -93,13 +76,7 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
       setIsManualName(true);
     }
     setDeceasedName(item.deceasedName);
-    setBinBinti(item.binBinti || '');
     setDeathDate(item.deathDate);
-    setHeirName(item.heirName || 'Anak');
-    setAddress(item.address || 'Dusun Tengah');
-    setTargetPerMember(item.targetPerMember || settings.minIuran);
-    setAssistanceGiven(item.assistanceGiven || 0);
-    setFuneralCost(item.funeralCost || 0);
     setNotes(item.notes || '');
     setShowAddModal(true);
   };
@@ -116,14 +93,6 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
     const m = members.find((item) => item.id === memberId);
     if (m) {
       setDeceasedName(m.name);
-      if (m.address && m.address.trim()) {
-        const fullAddr = m.address.toLowerCase().includes('dusun')
-          ? m.address
-          : `${m.address}, ${m.rtRw || 'Dusun Tengah'}`;
-        setAddress(fullAddr);
-      } else {
-        setAddress(m.rtRw || 'Dusun Tengah');
-      }
     } else {
       setDeceasedName('');
     }
@@ -133,24 +102,22 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
     if (e) e.preventDefault();
     if (!deceasedName.trim() || isSubmitting) return;
 
-    const finalHeir = heirName.trim() || 'Anak';
-    const finalAddress = address.trim() || 'Dusun Tengah';
-
     setIsSubmitting(true);
     const kifayahToSave: KifayahEvent = {
       id: editingKifayah ? editingKifayah.id : `KFY-${Date.now()}`,
       deceasedName: deceasedName.trim(),
       deceasedMemberId: selectedMemberId || undefined,
-      binBinti: binBinti.trim(),
       deathDate,
-      heirName: finalHeir,
-      address: finalAddress,
-      targetPerMember: Number(targetPerMember) || settings.minIuran,
-      status: editingKifayah ? editingKifayah.status : 'aktif',
-      assistanceGiven: Number(assistanceGiven) || 0,
-      funeralCost: Number(funeralCost) || 0,
       notes: notes.trim(),
+      status: editingKifayah ? editingKifayah.status : 'aktif',
       createdAt: editingKifayah ? editingKifayah.createdAt : new Date().toISOString(),
+      // Nilai bawaan untuk kompatibilitas data
+      targetPerMember: editingKifayah?.targetPerMember || settings.minIuran,
+      binBinti: editingKifayah?.binBinti || '',
+      heirName: editingKifayah?.heirName || '',
+      address: editingKifayah?.address || '',
+      assistanceGiven: editingKifayah?.assistanceGiven || 0,
+      funeralCost: editingKifayah?.funeralCost || 0,
     };
 
     try {
@@ -160,9 +127,7 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
       // Reset form
       setSelectedMemberId('');
       setDeceasedName('');
-      setBinBinti('');
-      setHeirName('Anak');
-      setAddress('Dusun Tengah');
+      setDeathDate(new Date().toISOString().split('T')[0]);
       setNotes('');
     } finally {
       setIsSubmitting(false);
@@ -203,24 +168,26 @@ export const KifayahManager: React.FC<KifayahManagerProps> = ({
     const totalTerkumpul = kIuran.reduce((acc, curr) => acc + curr.amount, 0);
     const pembayarCount = new Set(kIuran.map((i) => i.memberId)).size;
 
-    const text = `*LAPORAN KAS KIFAYAH & SANTUNAN*
-*${settings.organizationName}*
----------------------------------------
-Almarhum/ah: *${item.deceasedName}* (${item.binBinti})
-Tanggal Wafat: ${formatDateID(item.deathDate)}
-Ahli Waris: ${item.heirName}
-Alamat: ${item.address}
+    const lines = [
+      `*LAPORAN PERISTIWA KIFAYAH*`,
+      `*${settings.organizationName}*`,
+      `---------------------------------------`,
+      `Almarhum/ah: *${item.deceasedName}*${item.binBinti ? ` (${item.binBinti})` : ''}`,
+      `Tanggal Wafat: ${formatDateID(item.deathDate)}`,
+      item.heirName ? `Ahli Waris: ${item.heirName}` : '',
+      item.address ? `Alamat: ${item.address}` : '',
+      item.notes ? `Catatan: ${item.notes}` : '',
+      `---------------------------------------`,
+      `*STATUS PENGUMPULAN IURAN:*`,
+      `Total Iuran Warga Masuk: *${formatRupiah(totalTerkumpul)}* (${pembayarCount} warga)`,
+      `Status Kifayah: *${item.status === 'aktif' ? 'Pengumpulan Masih Berjalan' : 'Selesai / Ditutup'}*`,
+      `---------------------------------------`,
+      `Bendahara: ${settings.treasurerName} (${settings.treasurerPhone})`,
+      ``,
+      `_${settings.whatsappFooter}_`,
+    ].filter(Boolean);
 
-*RINCIAN KEUANGAN KIFAYAH:*
-1. Total Iuran Warga Terkumpul: *${formatRupiah(totalTerkumpul)}* (${pembayarCount} warga)
-2. Biaya Kain Kafan & Makam: *${formatRupiah(item.funeralCost)}*
-3. Santunan Diserahkan ke Keluarga: *${formatRupiah(item.assistanceGiven)}*
----------------------------------------
-Status Kifayah: *${item.status === 'aktif' ? 'Masih Dihimpun' : 'Selesai / Ditutup'}*
-Bendahara: ${settings.treasurerName} (${settings.treasurerPhone})
-
-_${settings.whatsappFooter}_`;
-
+    const text = lines.join('\n');
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -339,21 +306,31 @@ _${settings.whatsappFooter}_`;
                   <h3 className="text-lg font-extrabold text-slate-900">
                     {item.deceasedName}
                   </h3>
-                  <p className="text-xs text-slate-500 italic mb-2">{item.binBinti}</p>
+                  {item.binBinti && (
+                    <p className="text-xs text-slate-500 italic mb-1">{item.binBinti}</p>
+                  )}
                   
-                  <div className="text-xs text-slate-600 space-y-1">
+                  <div className="text-xs text-slate-600 space-y-1.5 mt-2">
                     <p className="flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-slate-400" />
-                      <span><strong>Ahli Waris:</strong> {item.heirName}</span>
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span><strong>Tanggal Wafat:</strong> {formatDateID(item.deathDate)}</span>
                     </p>
-                    <p className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                      <span><strong>Alamat:</strong> {item.address}</span>
-                    </p>
-                    {item.notes && (
-                      <p className="text-[11px] text-slate-500 italic pt-1">
-                        Catatan: {item.notes}
+                    {item.heirName && (
+                      <p className="flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span><strong>Ahli Waris:</strong> {item.heirName}</span>
                       </p>
+                    )}
+                    {item.address && (
+                      <p className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span><strong>Alamat:</strong> {item.address}</span>
+                      </p>
+                    )}
+                    {item.notes && (
+                      <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-slate-600 text-[11px] mt-2">
+                        <span className="font-bold text-slate-700">Catatan:</span> {item.notes}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -361,30 +338,34 @@ _${settings.whatsappFooter}_`;
                 {/* Financial Summary for this Kifayah */}
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5 text-xs">
                   <div className="flex justify-between items-baseline">
-                    <span className="text-slate-500">Iuran Terkumpul:</span>
-                    <span className="font-bold text-emerald-800 text-sm">
+                    <span className="text-slate-500 font-medium">Iuran Warga Terkumpul:</span>
+                    <span className="font-extrabold text-emerald-800 text-sm">
                       {formatRupiah(totalTerkumpul)} ({paidCount} warga)
                     </span>
                   </div>
 
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-slate-500">Biaya Kain Kafan & Makam:</span>
-                    <span className="font-semibold text-rose-700">
-                      {formatRupiah(item.funeralCost)}
-                    </span>
-                  </div>
+                  {item.funeralCost !== undefined && item.funeralCost > 0 && (
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-slate-500">Biaya Kain Kafan & Makam:</span>
+                      <span className="font-semibold text-rose-700">
+                        {formatRupiah(item.funeralCost)}
+                      </span>
+                    </div>
+                  )}
 
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-slate-500">Santunan Ahli Waris:</span>
-                    <span className="font-semibold text-slate-800">
-                      {formatRupiah(item.assistanceGiven)}
-                    </span>
-                  </div>
+                  {item.assistanceGiven !== undefined && item.assistanceGiven > 0 && (
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-slate-500">Santunan Ahli Waris:</span>
+                      <span className="font-semibold text-slate-800">
+                        {formatRupiah(item.assistanceGiven)}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="pt-2 border-t border-slate-200">
                     <div className="flex justify-between text-[11px] mb-1 font-medium text-slate-600">
                       <span>Progres Iuran: {progressPercent}%</span>
-                      <span>Target: {formatRupiah(item.targetPerMember)} / warga</span>
+                      <span>Target: {formatRupiah(item.targetPerMember || settings.minIuran)} / warga</span>
                     </div>
                     <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div
@@ -460,7 +441,7 @@ _${settings.whatsappFooter}_`;
                       .filter((m) => m.status !== 'almarhum')
                       .map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name} — {m.rtRw || 'Dusun Tengah'} {m.address ? `(${m.address})` : ''} {m.status === 'non-aktif' ? '[Non-Aktif]' : ''}
+                          {m.name} — {m.rtRw || 'Dusun Tengah'} {m.status === 'non-aktif' ? '[Non-Aktif]' : ''}
                         </option>
                       ))}
                     {members.filter((m) => m.status === 'almarhum').length > 0 && (
@@ -497,95 +478,29 @@ _${settings.whatsappFooter}_`;
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1">Bin / Binti</label>
-                  <input
-                    type="text"
-                    value={binBinti}
-                    onChange={(e) => setBinBinti(e.target.value)}
-                    placeholder="Contoh: Bin H. Mansyur"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1">Tanggal Wafat</label>
-                  <input
-                    type="date"
-                    value={deathDate}
-                    onChange={(e) => setDeathDate(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
+              <div>
+                <label className="block font-bold mb-1">
+                  Tanggal Wafat <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={deathDate}
+                  onChange={(e) => setDeathDate(e.target.value)}
+                  required
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
               </div>
 
               <div>
                 <label className="block font-bold mb-1">
-                  Nama Ahli Waris (Keluarga) <span className="text-rose-500">*</span>
+                  Catatan Tambahan <span className="text-slate-400 font-normal">(Opsional)</span>
                 </label>
-                <input
-                  type="text"
-                  value={heirName}
-                  onChange={(e) => setHeirName(e.target.value)}
-                  placeholder="Anak"
-                  required
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1">Alamat Rumah Duka</label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Dusun Tengah"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-bold mb-1">Iuran / Warga</label>
-                  <CurrencyInput
-                    value={targetPerMember}
-                    onChange={(val) => setTargetPerMember(val)}
-                    placeholder="10.000"
-                    className="w-full py-2 pr-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1">Biaya Kafan/Makam</label>
-                  <CurrencyInput
-                    value={funeralCost}
-                    onChange={(val) => setFuneralCost(val)}
-                    placeholder="200.000"
-                    className="w-full py-2 pr-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1">Santunan Keluarga</label>
-                  <CurrencyInput
-                    value={assistanceGiven}
-                    onChange={(val) => setAssistanceGiven(val)}
-                    placeholder="1.000.000"
-                    className="w-full py-2 pr-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1">Catatan Tambahan</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Contoh: Tempat pemakaman TPU Raudlatul Jannah bada dhuhur..."
-                  rows={2}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900"
+                  placeholder="Contoh: Pemakaman di TPU Raudlatul Umam bada Ashar, info keluarga, dll..."
+                  rows={3}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 

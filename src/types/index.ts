@@ -3,28 +3,32 @@ export type UserRole = 'public' | 'admin';
 export interface Member {
   id: string;
   name: string;
-  kkNumber?: string;
   rtRw: string;
-  phone: string;
-  address: string;
   status: 'aktif' | 'non-aktif' | 'almarhum';
   joinDate: string;
+  obligatedKifayahIds?: string[]; // ID kifayah yang diwajibkan iurannya
+  obligatedKifayahNames?: string[]; // Nama kifayah yang diwajibkan iurannya
+  // Kolom opsional (kompatibilitas data lama jika ada)
+  phone?: string;
+  address?: string;
+  kkNumber?: string;
 }
 
 export interface KifayahEvent {
   id: string;
   deceasedName: string;
   deceasedMemberId?: string;
-  binBinti: string;
   deathDate: string;
-  heirName: string; // Nama Ahli Waris
-  address: string;
-  targetPerMember: number; // Minimal iuran per warga saat kifayah ini
   status: 'aktif' | 'selesai'; // Aktif jika masih dalam masa penghimpunan iuran
-  assistanceGiven: number; // Santunan yang diserahkan ke keluarga
-  funeralCost: number; // Biaya kain kafan, makam, pemandian
   notes?: string;
   createdAt: string;
+  // Kolom opsional (kompatibilitas data lama jika ada)
+  binBinti?: string;
+  heirName?: string;
+  address?: string;
+  targetPerMember?: number;
+  assistanceGiven?: number;
+  funeralCost?: number;
 }
 
 export interface IuranRecord {

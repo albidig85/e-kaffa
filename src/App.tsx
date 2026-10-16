@@ -39,6 +39,7 @@ import { ReceiptModal } from './components/ReceiptModal';
 import { ExpenseModal } from './components/ExpenseModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { SyncLoadingModal } from './components/SyncLoadingModal';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const ADMIN_SESSION_DURATION = 60 * 60 * 1000; // 60 menit
@@ -72,6 +73,9 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncModal, setSyncModal] = useState<{ isOpen: boolean; title?: string; message?: string }>({
+    isOpen: false,
+  });
   const [toastMessage, setToastMessage] = useState<{ text: string; isError?: boolean } | null>(null);
 
   // Modals
@@ -133,24 +137,43 @@ export default function App() {
     }
   }, []);
 
+  const TAB_LABELS: Record<TabType, string> = {
+    dashboard: 'Dashboard',
+    members: 'Data Anggota',
+    iuran: 'Input Iuran',
+    kifayah: 'Data Kifayah',
+    reports: 'Laporan Kas',
+  };
+
   /**
-   * Tarik data terbaru dari Google Sheets.
-   * Menimpa data lokal secara utuh sehingga jika data dihapus manual di Google Sheet,
-   * data di aplikasi juga langsung terhapus.
+   * Tarik data terbaru dari Google Sheets dengan opsi loading modal dialog (Silahkan Tunggu...).
    */
-  const fetchAndApplyRemoteData = useCallback(async (showToast = false) => {
+  const fetchAndApplyRemoteData = useCallback(async (options?: {
+    showModal?: boolean;
+    title?: string;
+    message?: string;
+    showToast?: boolean;
+  }) => {
     if (!settings.gasUrl) {
-      if (showToast) {
+      if (options?.showToast) {
         showToastNotification('URL Google Sheet belum diatur di menu Pengaturan.', true);
       }
       return;
     }
 
+    if (options?.showModal) {
+      setSyncModal({
+        isOpen: true,
+        title: options.title || 'Silahkan Tunggu...',
+        message: options.message || 'Mengambil data dari Google Sheet...',
+      });
+    }
     setIsSyncing(true);
+
     try {
       const remoteData = await GasService.fetchAllData(settings.gasUrl);
       if (!remoteData || !remoteData.success || !remoteData.data) {
-        if (showToast) {
+        if (options?.showToast) {
           showToastNotification('Gagal mengambil data dari Google Sheet. Periksa koneksi/URL GAS.', true);
         }
         return;
@@ -191,39 +214,51 @@ export default function App() {
         saveStoredExpenses(d.expensesList);
       }
 
-      if (showToast) {
+      if (options?.showToast) {
         showToastNotification('✓ Data berhasil disinkronkan langsung dari Google Sheet!');
       }
     } catch (err: any) {
-      if (showToast) {
+      if (options?.showToast) {
         showToastNotification('Error sinkronisasi: ' + (err?.message || 'Koneksi gagal'), true);
       }
     } finally {
       setIsSyncing(false);
+      if (options?.showModal) {
+        setSyncModal({ isOpen: false });
+      }
     }
   }, [settings.gasUrl]);
 
-  // Sync saat pertama kali dibuka atau URL GAS berubah
+  // Saat pertama kali aplikasi dibuka: ambil data dari Google Sheet dengan tampilan loading spinner
   useEffect(() => {
     if (settings.gasUrl) {
-      fetchAndApplyRemoteData(false);
+      fetchAndApplyRemoteData({
+        showModal: true,
+        title: 'Silahkan Tunggu...',
+        message: 'Mengambil data dari Google Sheet...',
+      });
     }
   }, [settings.gasUrl, fetchAndApplyRemoteData]);
 
-  // Auto-sync saat pengguna kembali ke tab browser (misal setelah mengedit/menghapus manual di Google Sheet)
-  useEffect(() => {
-    if (!settings.gasUrl) return;
-
-    const handleWindowFocus = () => {
-      fetchAndApplyRemoteData(false);
-    };
-
-    window.addEventListener('focus', handleWindowFocus);
-    return () => window.removeEventListener('focus', handleWindowFocus);
-  }, [settings.gasUrl, fetchAndApplyRemoteData]);
+  // Fungsi navigasi menu: melakukan pengambilan data seketika saat menu dipilih dengan tanda loading spinner
+  const handleTabChange = async (targetTab: TabType) => {
+    if (settings.gasUrl) {
+      await fetchAndApplyRemoteData({
+        showModal: true,
+        title: 'Silahkan Tunggu...',
+        message: `Mengambil data ${TAB_LABELS[targetTab]} dari Google Sheet...`,
+      });
+    }
+    setActiveTab(targetTab);
+  };
 
   const handleRefreshData = () => {
-    fetchAndApplyRemoteData(true);
+    fetchAndApplyRemoteData({
+      showModal: true,
+      title: 'Silahkan Tunggu...',
+      message: 'Menyinkronkan seluruh data dari Google Sheet...',
+      showToast: true,
+    });
   };
 
   // Role changes with 60-minute session timestamp
@@ -247,27 +282,49 @@ export default function App() {
     showToastNotification('Sesi admin telah ditutup.');
   };
 
-  // CRUD Handlers with LocalStorage + GAS background sync
+  // CRUD Handlers with LocalStorage + Google Sheet Sync (dengan indikator loading)
   const handleSaveIuran = async (record: IuranRecord) => {
     const updated = [record, ...iuranList];
     setIuranList(updated);
     saveStoredIuran(updated);
-    showToastNotification(`✓ Iuran ${record.memberName} berhasil disimpan`);
 
     if (settings.gasUrl) {
-      GasService.syncIuran(settings.gasUrl, record);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: `Menyimpan catatan iuran "${record.memberName}" ke Google Sheet...`,
+      });
+      try {
+        await GasService.syncIuran(settings.gasUrl, record);
+      } catch (err) {
+        console.warn('Gagal sinkron iuran ke GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(`✓ Iuran ${record.memberName} berhasil disimpan`);
   };
 
   const handleBatchSaveIuran = async (records: IuranRecord[]) => {
     const updated = [...records, ...iuranList];
     setIuranList(updated);
     saveStoredIuran(updated);
-    showToastNotification(`✓ ${records.length} iuran warga berhasil disimpan massal`);
 
     if (settings.gasUrl) {
-      GasService.syncBatchIuran(settings.gasUrl, records);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: `Menyimpan ${records.length} iuran warga ke Google Sheet...`,
+      });
+      try {
+        await GasService.syncBatchIuran(settings.gasUrl, records);
+      } catch (err) {
+        console.warn('Gagal sinkron batch iuran ke GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(`✓ ${records.length} iuran warga berhasil disimpan`);
   };
 
   const handleDeleteIuran = async (id: string) => {
@@ -275,11 +332,22 @@ export default function App() {
     const updated = iuranList.filter((i) => i.id !== id);
     setIuranList(updated);
     saveStoredIuran(updated);
-    showToastNotification(`✓ Catatan iuran ${deletedItem ? `"${deletedItem.memberName}"` : ''} berhasil dihapus dari aplikasi & Google Sheet`);
 
     if (settings.gasUrl) {
-      await GasService.deleteIuran(settings.gasUrl, id);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: 'Menghapus catatan iuran dari Google Sheet...',
+      });
+      try {
+        await GasService.deleteIuran(settings.gasUrl, id);
+      } catch (err) {
+        console.warn('Gagal hapus iuran di GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(`✓ Catatan iuran ${deletedItem ? `"${deletedItem.memberName}"` : ''} berhasil dihapus`);
   };
 
   const handleSaveMember = async (member: Member) => {
@@ -288,17 +356,31 @@ export default function App() {
     if (existingIndex >= 0) {
       updated = [...members];
       updated[existingIndex] = member;
-      showToastNotification(`✓ Perubahan data anggota "${member.name}" berhasil disimpan`);
     } else {
       updated = [member, ...members];
-      showToastNotification(`✓ Anggota baru "${member.name}" berhasil didaftarkan`);
     }
     setMembers(updated);
     saveStoredMembers(updated);
 
     if (settings.gasUrl) {
-      GasService.syncMember(settings.gasUrl, member);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: `Menyimpan data anggota "${member.name}" ke Google Sheet...`,
+      });
+      try {
+        await GasService.syncMember(settings.gasUrl, member);
+      } catch (err) {
+        console.warn('Gagal simpan anggota ke GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(
+      existingIndex >= 0
+        ? `✓ Perubahan data anggota "${member.name}" berhasil disimpan`
+        : `✓ Anggota baru "${member.name}" berhasil didaftarkan`
+    );
   };
 
   const handleDeleteMember = async (id: string) => {
@@ -306,11 +388,22 @@ export default function App() {
     const updated = members.filter((m) => m.id !== id);
     setMembers(updated);
     saveStoredMembers(updated);
-    showToastNotification(`✓ Data keanggotaan ${deletedItem ? `"${deletedItem.name}"` : ''} berhasil dihapus dari aplikasi & Google Sheet`);
 
     if (settings.gasUrl) {
-      await GasService.deleteMember(settings.gasUrl, id);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: `Menghapus data "${deletedItem?.name || 'anggota'}" dari Google Sheet...`,
+      });
+      try {
+        await GasService.deleteMember(settings.gasUrl, id);
+      } catch (err) {
+        console.warn('Gagal hapus anggota di GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(`✓ Data keanggotaan ${deletedItem ? `"${deletedItem.name}"` : ''} berhasil dihapus`);
   };
 
   const handleSaveKifayah = async (kifayah: KifayahEvent, deceasedMemberId?: string) => {
@@ -319,16 +412,25 @@ export default function App() {
     if (existingIndex >= 0) {
       updated = [...kifayahList];
       updated[existingIndex] = kifayah;
-      showToastNotification(`✓ Perubahan data kifayah "${kifayah.deceasedName}" berhasil disimpan`);
     } else {
       updated = [kifayah, ...kifayahList];
-      showToastNotification(`✓ Peristiwa kematian "${kifayah.deceasedName}" berhasil dicatat`);
     }
     setKifayahList(updated);
     saveStoredKifayah(updated);
 
     if (settings.gasUrl) {
-      GasService.syncKifayah(settings.gasUrl, kifayah);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: `Menyimpan peristiwa kematian "${kifayah.deceasedName}" ke Google Sheet...`,
+      });
+      try {
+        await GasService.syncKifayah(settings.gasUrl, kifayah);
+      } catch (err) {
+        console.warn('Gagal simpan kifayah ke GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
 
     // Ketika data almarhum diambil dari data anggota, otomatis nonaktifkan pada data anggota dan tandai sebagai Almarhum
@@ -357,6 +459,12 @@ export default function App() {
         }
       }
     }
+
+    showToastNotification(
+      existingIndex >= 0
+        ? `✓ Perubahan data kifayah "${kifayah.deceasedName}" berhasil disimpan`
+        : `✓ Peristiwa kematian "${kifayah.deceasedName}" berhasil dicatat`
+    );
   };
 
   const handleDeleteKifayah = async (id: string) => {
@@ -364,22 +472,44 @@ export default function App() {
     const updated = kifayahList.filter((k) => k.id !== id);
     setKifayahList(updated);
     saveStoredKifayah(updated);
-    showToastNotification(`✓ Data kifayah ${deletedItem ? `"${deletedItem.deceasedName}"` : ''} berhasil dihapus dari aplikasi & Google Sheet`);
 
     if (settings.gasUrl) {
-      await GasService.deleteKifayah(settings.gasUrl, id);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: `Menghapus data kifayah "${deletedItem?.deceasedName || ''}" dari Google Sheet...`,
+      });
+      try {
+        await GasService.deleteKifayah(settings.gasUrl, id);
+      } catch (err) {
+        console.warn('Gagal hapus kifayah di GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(`✓ Data kifayah ${deletedItem ? `"${deletedItem.deceasedName}"` : ''} berhasil dihapus`);
   };
 
   const handleSaveExpense = async (expense: ExpenseRecord) => {
     const updated = [expense, ...expenses];
     setExpenses(updated);
     saveStoredExpenses(updated);
-    showToastNotification(`✓ Pengeluaran kas sebesar Rp ${expense.amount.toLocaleString('id-ID')} berhasil dicatat`);
 
     if (settings.gasUrl) {
-      GasService.syncExpense(settings.gasUrl, expense);
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: 'Menyimpan catatan pengeluaran ke Google Sheet...',
+      });
+      try {
+        await GasService.syncExpense(settings.gasUrl, expense);
+      } catch (err) {
+        console.warn('Gagal simpan expense ke GAS:', err);
+      } finally {
+        setSyncModal({ isOpen: false });
+      }
     }
+    showToastNotification(`✓ Pengeluaran kas sebesar Rp ${expense.amount.toLocaleString('id-ID')} berhasil dicatat`);
   };
 
   const handleSaveSettings = async (newSettings: AppSettings) => {
@@ -387,11 +517,16 @@ export default function App() {
     saveStoredSettings(newSettings);
 
     if (newSettings.gasUrl) {
+      setSyncModal({
+        isOpen: true,
+        title: 'Silahkan Tunggu...',
+        message: 'Menyimpan pengaturan aplikasi ke Google Sheet...',
+      });
       setIsSyncing(true);
       try {
         const ok = await GasService.syncSettings(newSettings.gasUrl, newSettings);
         if (ok) {
-          showToastNotification('✓ Pengaturan & sandi admin berhasil disimpan dan disinkronkan ke Google Sheet');
+          showToastNotification('✓ Pengaturan & sandi admin berhasil disimpan ke Google Sheet');
         } else {
           showToastNotification('✓ Pengaturan disimpan lokal (sinkronisasi Google Sheet tertunda)');
         }
@@ -399,6 +534,7 @@ export default function App() {
         showToastNotification('✓ Pengaturan disimpan lokal di aplikasi');
       } finally {
         setIsSyncing(false);
+        setSyncModal({ isOpen: false });
       }
     } else {
       showToastNotification('✓ Pengaturan aplikasi & akun berhasil disimpan');
@@ -436,9 +572,9 @@ export default function App() {
             expenses={expenses}
             isSyncing={isSyncing}
             onRefreshData={handleRefreshData}
-            onNavigate={(tab) => setActiveTab(tab)}
+            onNavigate={handleTabChange}
             onOpenReceipt={(rec) => setActiveReceipt(rec)}
-            onOpenNewKifayah={() => setActiveTab('kifayah')}
+            onOpenNewKifayah={() => handleTabChange('kifayah')}
             onOpenExpense={() => setIsExpenseModalOpen(true)}
           />
         )}
@@ -449,6 +585,7 @@ export default function App() {
             role={role}
             settings={settings}
             members={members}
+            kifayahList={kifayahList}
             onSaveMember={handleSaveMember}
             onDeleteMember={handleDeleteMember}
             onOpenLogin={() => setIsLoginOpen(true)}
@@ -505,7 +642,7 @@ export default function App() {
       {role === 'admin' && (
         <BottomNav
           activeTab={activeTab}
-          onChangeTab={(t) => setActiveTab(t)}
+          onChangeTab={handleTabChange}
           activeKifayahCount={activeKifayahCount}
         />
       )}
@@ -553,6 +690,14 @@ export default function App() {
 
       {/* Floating PWA Install Banner untuk Browser Smartphone */}
       <PWAInstallBanner appName={settings.appName} />
+
+      {/* Dialog Loading Spinner "Silahkan Tunggu..." (Sinkronisasi On-Demand Google Sheet) */}
+      <SyncLoadingModal
+        isOpen={syncModal.isOpen}
+        title={syncModal.title}
+        message={syncModal.message}
+        appName={settings.appName}
+      />
 
       {/* Toast Notification */}
       {toastMessage && (

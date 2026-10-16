@@ -419,3 +419,93 @@ export const formatDateID = (dateStr: string): string => {
     return dateStr;
   }
 };
+
+/**
+ * Cek apakah seorang anggota memiliki kewajiban iuran untuk kifayah tertentu
+ */
+export const isMemberObligatedToKifayah = (
+  member: Member,
+  kifayah?: KifayahEvent | null
+): boolean => {
+  if (!kifayah) return false;
+  if (member.status !== 'aktif') return false;
+
+  const ids = member.obligatedKifayahIds;
+  const names = member.obligatedKifayahNames;
+
+  // Jika belum disetel secara khusus, default adalah wajib untuk semua kifayah
+  if ((!ids || ids.length === 0) && (!names || names.length === 0)) {
+    return true;
+  }
+
+  // Jika disetel untuk semua
+  if (
+    ids?.includes('all') ||
+    names?.some(
+      (n) => n.toLowerCase() === 'semua kifayah' || n.toLowerCase() === 'semua'
+    )
+  ) {
+    return true;
+  }
+
+  // Cek kecocokan berdasarkan ID Kifayah
+  if (ids && ids.includes(kifayah.id)) {
+    return true;
+  }
+
+  // Cek kecocokan berdasarkan Nama Almarhum
+  if (
+    names &&
+    names.some((n) => n.toLowerCase() === kifayah.deceasedName.trim().toLowerCase())
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Ringkasan teks kewajiban kifayah untuk ditampilkan pada kartu anggota
+ */
+export const getMemberObligationSummary = (
+  member: Member,
+  kifayahList: KifayahEvent[]
+): string => {
+  if (member.status === 'almarhum') return 'Almarhum';
+  if (member.status === 'non-aktif') return 'Non-Aktif (Bebas Iuran)';
+
+  const ids = member.obligatedKifayahIds;
+  const names = member.obligatedKifayahNames;
+
+  if ((!ids || ids.length === 0) && (!names || names.length === 0)) {
+    return 'Semua Kifayah';
+  }
+
+  if (
+    ids?.includes('all') ||
+    names?.some(
+      (n) => n.toLowerCase() === 'semua kifayah' || n.toLowerCase() === 'semua'
+    )
+  ) {
+    return 'Semua Kifayah';
+  }
+
+  const resultNames: string[] = [];
+  if (ids) {
+    ids.forEach((id) => {
+      const k = kifayahList.find((item) => item.id === id);
+      if (k && !resultNames.includes(k.deceasedName)) {
+        resultNames.push(k.deceasedName);
+      }
+    });
+  }
+  if (names) {
+    names.forEach((n) => {
+      if (!resultNames.includes(n)) {
+        resultNames.push(n);
+      }
+    });
+  }
+
+  return resultNames.length > 0 ? resultNames.join(', ') : 'Semua Kifayah';
+};

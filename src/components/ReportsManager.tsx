@@ -16,9 +16,7 @@ import {
   Copy,
   Check,
   PlusCircle,
-  X,
   Wallet,
-  DollarSign,
   Lock,
 } from 'lucide-react';
 import { ExpenseModal } from './ExpenseModal';
@@ -81,9 +79,8 @@ export const ReportsManager: React.FC<ReportsManagerProps> = ({
 =======================================
 Bismillahirrohmanirrohim,
 Laporan iuran warga atas wafatnya:
-Almarhum/ah: *${currentKifayah.deceasedName}* (${currentKifayah.binBinti})
-Tanggal Wafat: ${formatDateID(currentKifayah.deathDate)}
-Ahli Waris: ${currentKifayah.heirName}
+Almarhum/ah: *${currentKifayah.deceasedName}*${currentKifayah.binBinti ? ` (${currentKifayah.binBinti})` : ''}
+Tanggal Wafat: ${formatDateID(currentKifayah.deathDate)}${currentKifayah.heirName ? `\nAhli Waris: ${currentKifayah.heirName}` : ''}${currentKifayah.notes ? `\nCatatan: ${currentKifayah.notes}` : ''}
 
 *DAFTAR WARGA YANG SUDAH MENYETOR:*
 ${listLines || '-(Belum ada catatan setoran)-'}
@@ -91,9 +88,7 @@ ${listLines || '-(Belum ada catatan setoran)-'}
 ---------------------------------------
 *RINGKASAN KEUANGAN:*
 • Total Warga Masuk: *${kIuranList.length} orang*
-• Total Iuran Terkumpul: *${formatRupiah(kTotalIuran)}*
-• Biaya Perlengkapan/Makam: *${formatRupiah(currentKifayah.funeralCost || 0)}*
-• Santunan ke Ahli Waris: *${formatRupiah(currentKifayah.assistanceGiven || 0)}*
+• Total Iuran Terkumpul: *${formatRupiah(kTotalIuran)}*${currentKifayah.funeralCost ? `\n• Biaya Perlengkapan/Makam: *${formatRupiah(currentKifayah.funeralCost)}*` : ''}${currentKifayah.assistanceGiven ? `\n• Santunan ke Ahli Waris: *${formatRupiah(currentKifayah.assistanceGiven)}*` : ''}
 =======================================
 Bendahara: ${settings.treasurerName} (${settings.treasurerPhone})
 _${settings.whatsappFooter}_`;

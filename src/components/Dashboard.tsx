@@ -7,7 +7,7 @@ import {
   Member,
   UserRole,
 } from '../types';
-import { formatRupiah, formatDateID } from '../services/storageService';
+import { formatRupiah, formatDateID, isMemberObligatedToKifayah } from '../services/storageService';
 import {
   TrendingUp,
   TrendingDown,
@@ -21,7 +21,6 @@ import {
   Clock,
   PlusCircle,
   Sparkles,
-  RefreshCw,
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -61,10 +60,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const totalPengeluaran = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const saldoKas = totalIuranMasuk - totalPengeluaran;
 
-  const activeMembersCount = members.filter((m) => m.status === 'aktif').length;
-
   // Kifayah Aktif (peristiwa kematian yang masih dalam pengumpulan iuran)
   const activeKifayah = kifayahList.find((k) => k.status === 'aktif') || kifayahList[0];
+
+  // Warga aktif yang memiliki kewajiban iuran untuk kifayah ini
+  const activeMembersCount = activeKifayah
+    ? members.filter((m) => isMemberObligatedToKifayah(m, activeKifayah)).length
+    : members.filter((m) => m.status === 'aktif').length;
 
   // Statistik untuk kifayah aktif tersebut
   const activeKifayahIuran = activeKifayah
@@ -206,11 +208,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <h3 className="text-lg font-bold text-slate-900 mt-0.5">
                 {activeKifayah.deceasedName}
               </h3>
-              <p className="text-xs text-slate-500 italic">{activeKifayah.binBinti}</p>
+              {activeKifayah.binBinti ? (
+                <p className="text-xs text-slate-500 italic">{activeKifayah.binBinti}</p>
+              ) : null}
               
               <div className="mt-2 text-xs text-slate-600 space-y-1">
-                <p><strong>Ahli Waris:</strong> {activeKifayah.heirName}</p>
-                <p><strong>Rumah Duka:</strong> {activeKifayah.address}</p>
+                {activeKifayah.notes ? (
+                  <p className="text-slate-600"><strong>Catatan:</strong> {activeKifayah.notes}</p>
+                ) : null}
+                {activeKifayah.heirName ? (
+                  <p><strong>Ahli Waris:</strong> {activeKifayah.heirName}</p>
+                ) : null}
+                {activeKifayah.address ? (
+                  <p><strong>Rumah Duka:</strong> {activeKifayah.address}</p>
+                ) : null}
               </div>
             </div>
 
